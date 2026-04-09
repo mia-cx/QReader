@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { otsuBinarize, toGrayscale } from '../../src/internal/binarize.js';
 import { decodeGridLogical } from '../../src/internal/decode-grid.js';
 import { detectFinderPatterns } from '../../src/internal/detect.js';
@@ -271,7 +271,7 @@ describe('single-image baseline pipeline (internal modules)', () => {
     const finders = detectFinderPatterns(binary, imageData.width, imageData.height);
     expect(finders.length).toBe(3);
 
-    const resolution = resolveGrid(finders, imageData);
+    const resolution = resolveGrid(finders);
     expect(resolution).not.toBeNull();
     expect(resolution?.version).toBe(1);
     expect(resolution?.size).toBe(21);
@@ -290,7 +290,7 @@ describe('single-image baseline pipeline (internal modules)', () => {
     const finders = detectFinderPatterns(binary, imageData.width, imageData.height);
     expect(finders.length).toBe(3);
 
-    const resolution = resolveGrid(finders, imageData);
+    const resolution = resolveGrid(finders);
     expect(resolution).not.toBeNull();
     if (resolution === null) return;
 

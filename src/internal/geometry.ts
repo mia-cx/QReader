@@ -46,13 +46,9 @@ function cross(a: Point, b: Point, c: Point): number {
  * transform from (gridRow, gridCol) to pixel coordinates.
  *
  * @param finders - Exactly 3 finder pattern candidates.
- * @param imageData - Source image (used for size clamping).
  * @returns Grid resolution for sampling, or null if geometry cannot be resolved.
  */
-export function resolveGrid(
-  finders: readonly FinderCandidate[],
-  _imageData: ImageData,
-): GridResolution | null {
+export function resolveGrid(finders: readonly FinderCandidate[]): GridResolution | null {
   if (finders.length < 3) return null;
 
   const [fa, fb, fc] = finders as [FinderCandidate, FinderCandidate, FinderCandidate];

@@ -27,7 +27,7 @@ export async function scanFrameInternal(input: BrowserImageSource): Promise<Scan
 
   if (finders.length < 3) return [];
 
-  const resolution = resolveGrid(finders, imageData);
+  const resolution = resolveGrid(finders);
   if (resolution === null) return [];
 
   const grid = sampleGrid(imageData, resolution, binary);

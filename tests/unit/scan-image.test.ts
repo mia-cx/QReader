@@ -7,6 +7,8 @@ import {
   buildDataModulePositions,
   buildFormatInfoCodeword,
   buildFunctionModuleMask,
+  FORMAT_INFO_FIRST_COPY_POSITIONS,
+  getFormatInfoSecondCopyPositions,
   getVersionBlockInfo,
   maskApplies,
 } from '../../src/internal/qr-spec.js';
@@ -64,41 +66,6 @@ function gridToImageData(grid: boolean[][]): ImageData {
 
 const V1_SIZE = 21;
 const V1_VERSION = 1;
-
-const FORMAT_INFO_FIRST_COPY_POSITIONS: Array<readonly [number, number]> = [
-  [8, 0],
-  [8, 1],
-  [8, 2],
-  [8, 3],
-  [8, 4],
-  [8, 5],
-  [8, 7],
-  [8, 8],
-  [7, 8],
-  [5, 8],
-  [4, 8],
-  [3, 8],
-  [2, 8],
-  [1, 8],
-  [0, 8],
-];
-const FORMAT_INFO_SECOND_COPY_POSITIONS: Array<readonly [number, number]> = [
-  [8, V1_SIZE - 1],
-  [8, V1_SIZE - 2],
-  [8, V1_SIZE - 3],
-  [8, V1_SIZE - 4],
-  [8, V1_SIZE - 5],
-  [8, V1_SIZE - 6],
-  [8, V1_SIZE - 7],
-  [8, V1_SIZE - 8],
-  [V1_SIZE - 7, 8],
-  [V1_SIZE - 6, 8],
-  [V1_SIZE - 5, 8],
-  [V1_SIZE - 4, 8],
-  [V1_SIZE - 3, 8],
-  [V1_SIZE - 2, 8],
-  [V1_SIZE - 1, 8],
-];
 
 function appendBits(bits: number[], value: number, length: number): void {
   for (let bit = length - 1; bit >= 0; bit -= 1) {
@@ -181,8 +148,8 @@ function buildVersion1Grid(
     const pos = FORMAT_INFO_FIRST_COPY_POSITIONS[i];
     if (pos) set(pos[0], pos[1], ((formatBits >> (14 - i)) & 1) === 1);
   }
-  for (let i = 0; i < FORMAT_INFO_SECOND_COPY_POSITIONS.length; i += 1) {
-    const pos = FORMAT_INFO_SECOND_COPY_POSITIONS[i];
+  for (let i = 0; i < getFormatInfoSecondCopyPositions(V1_SIZE).length; i += 1) {
+    const pos = getFormatInfoSecondCopyPositions(V1_SIZE)[i];
     if (pos) set(pos[0], pos[1], ((formatBits >> (14 - i)) & 1) === 1);
   }
 
@@ -294,7 +261,7 @@ describe('single-image baseline pipeline (internal modules)', () => {
     expect(resolution).not.toBeNull();
     if (resolution === null) return;
 
-    const sampledGrid = sampleGrid(imageData, resolution, binary);
+    const sampledGrid = sampleGrid(imageData.width, imageData.height, resolution, binary);
     const result = await decodeGridLogical({ grid: sampledGrid });
 
     expect(result.payload.text).toBe('HI');

@@ -32,7 +32,7 @@ function dist(a: Point, b: Point): number {
 
 /**
  * Returns the cross product of vectors (b-a) and (c-a).
- * Positive = c is to the left of the directed line a→b.
+ * Positive = c is below/right of the directed line a→b (image coords, y increases downward).
  */
 function cross(a: Point, b: Point, c: Point): number {
   return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);

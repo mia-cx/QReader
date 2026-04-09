@@ -30,7 +30,7 @@ export async function scanFrameInternal(input: BrowserImageSource): Promise<Scan
   const resolution = resolveGrid(finders);
   if (resolution === null) return [];
 
-  const grid = sampleGrid(imageData, resolution, binary);
+  const grid = sampleGrid(width, height, resolution, binary);
 
   let decoded: Awaited<ReturnType<typeof decodeGridLogical>>;
   try {

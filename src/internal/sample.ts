@@ -6,17 +6,18 @@ import type { GridResolution } from './geometry.js';
  * For each module cell, reads the binary pixel value at the computed center
  * coordinate and returns `true` for a dark module, `false` for a light module.
  *
- * @param imageData - Source image (used for bounds clamping).
+ * @param width - Image width in pixels (used for bounds clamping).
+ * @param height - Image height in pixels (used for bounds clamping).
  * @param resolution - Grid geometry resolved from finder patterns.
  * @param binary - Binarized pixel array (0 = dark, 255 = light).
  * @returns A 2D boolean grid where `true` = dark module.
  */
 export function sampleGrid(
-  imageData: ImageData,
+  width: number,
+  height: number,
   resolution: GridResolution,
   binary: Uint8Array,
 ): boolean[][] {
-  const { width, height } = imageData;
   const { size, samplePoint } = resolution;
 
   return Array.from({ length: size }, (_, row) =>

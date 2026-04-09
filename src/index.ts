@@ -29,10 +29,9 @@ export async function decodeGrid(input: DecodeGridInput): Promise<DecodeGridResu
 /**
  * Scans a single still image or video frame for QR symbols.
  *
- * @param _input - Browser image source to inspect.
+ * @param input - Browser image source to inspect.
  * @param _options - Scan behavior overrides.
  * @returns A promise containing every decoded symbol found in the frame.
- * @throws {ScannerNotImplementedError} Thrown until frame scanning is implemented.
  */
 export async function scanFrame(
   input: ScanFrameInput,

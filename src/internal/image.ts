@@ -18,6 +18,7 @@ export async function toImageData(source: BrowserImageSource): Promise<ImageData
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
   const ctx = canvas.getContext('2d');
   if (ctx === null) {
+    bitmap.close();
     throw new Error('Failed to get 2d context from OffscreenCanvas.');
   }
 

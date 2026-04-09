@@ -22,10 +22,18 @@ const BIG5_DECODER = new TextDecoder('big5', { fatal: false });
 const GBK_DECODER = new TextDecoder('gbk', { fatal: false });
 const EUC_KR_DECODER = new TextDecoder('euc-kr', { fatal: false });
 
+/**
+ * Bit-level reader for QR segment payloads.
+ */
 class BitReader {
   private readonly bits: number[];
   private index = 0;
 
+  /**
+   * Expands a byte array into a bitstream for sequential reading.
+   *
+   * @param bytes - Bytes to expose as a stream of bits.
+   */
   constructor(bytes: readonly number[]) {
     const bits: number[] = [];
     for (const byte of bytes) {
@@ -36,6 +44,13 @@ class BitReader {
     this.bits = bits;
   }
 
+  /**
+   * Reads the next N bits from the stream.
+   *
+   * @param length - Number of bits to consume.
+   * @returns The consumed bits packed into an integer.
+   * @throws {ScannerError} Thrown when the request is invalid or the stream ends early.
+   */
   read(length: number): number {
     if (length < 0) {
       throw new ScannerError('internal_error', `Cannot read a negative number of bits: ${length}`);
@@ -54,11 +69,22 @@ class BitReader {
     return value;
   }
 
+  /**
+   * Reports how many unread bits remain.
+   *
+   * @returns Remaining bit count.
+   */
   remaining(): number {
     return this.bits.length - this.index;
   }
 }
 
+/**
+ * Maps plain text to the most specific payload kind currently recognized.
+ *
+ * @param text - Decoded text payload.
+ * @returns The inferred payload kind.
+ */
 function classifyPayload(
   text: string,
 ): 'text' | 'url' | 'email' | 'sms' | 'wifi' | 'contact' | 'calendar' | 'binary' | 'unknown' {
@@ -73,6 +99,14 @@ function classifyPayload(
   return 'text';
 }
 
+/**
+ * Decodes a byte segment with the requested character encoding.
+ *
+ * @param bytes - Raw bytes from the QR segment.
+ * @param encoding - ECI-resolved encoding label.
+ * @returns The decoded string.
+ * @throws {ScannerError} Thrown when the encoding label is unsupported.
+ */
 function decodeText(bytes: Uint8Array, encoding: string): string {
   switch (encoding) {
     case 'iso-8859-1':
@@ -96,6 +130,13 @@ function decodeText(bytes: Uint8Array, encoding: string): string {
   }
 }
 
+/**
+ * Decodes an alphanumeric-mode QR segment.
+ *
+ * @param reader - Bit reader positioned at the segment payload.
+ * @param count - Number of encoded characters.
+ * @returns The decoded text segment.
+ */
 function decodeAlphanumeric(reader: BitReader, count: number): string {
   let text = '';
 
@@ -125,6 +166,13 @@ function decodeAlphanumeric(reader: BitReader, count: number): string {
   return text;
 }
 
+/**
+ * Decodes a numeric-mode QR segment.
+ *
+ * @param reader - Bit reader positioned at the segment payload.
+ * @param count - Number of encoded digits.
+ * @returns The decoded digit string.
+ */
 function decodeNumeric(reader: BitReader, count: number): string {
   let text = '';
   let remaining = count;
@@ -143,6 +191,13 @@ function decodeNumeric(reader: BitReader, count: number): string {
   return text;
 }
 
+/**
+ * Reads a byte-mode QR segment.
+ *
+ * @param reader - Bit reader positioned at the segment payload.
+ * @param count - Number of bytes to read.
+ * @returns The raw segment bytes.
+ */
 function decodeByteSegment(reader: BitReader, count: number): Uint8Array {
   const bytes = new Uint8Array(count);
   for (let index = 0; index < count; index += 1) {
@@ -152,6 +207,13 @@ function decodeByteSegment(reader: BitReader, count: number): Uint8Array {
   return bytes;
 }
 
+/**
+ * Decodes a kanji-mode QR segment into Shift-JIS bytes.
+ *
+ * @param reader - Bit reader positioned at the segment payload.
+ * @param count - Number of encoded kanji characters.
+ * @returns Shift-JIS bytes for the segment.
+ */
 function decodeKanjiSegment(reader: BitReader, count: number): Uint8Array {
   const bytes = new Uint8Array(count * 2);
 
@@ -166,6 +228,12 @@ function decodeKanjiSegment(reader: BitReader, count: number): Uint8Array {
   return bytes;
 }
 
+/**
+ * Reads a variable-width ECI assignment number.
+ *
+ * @param reader - Bit reader positioned after the ECI mode indicator.
+ * @returns The numeric ECI assignment.
+ */
 function readEciAssignmentNumber(reader: BitReader): number {
   const firstByte = reader.read(8);
 
@@ -184,6 +252,12 @@ function readEciAssignmentNumber(reader: BitReader): number {
   throw new ScannerError('decode_failed', 'Invalid ECI assignment number.');
 }
 
+/**
+ * Maps a supported QR ECI assignment number to a TextDecoder label.
+ *
+ * @param assignmentNumber - Numeric ECI assignment.
+ * @returns The corresponding encoding label.
+ */
 function getEciEncodingLabel(assignmentNumber: number): string {
   switch (assignmentNumber) {
     case 1:
@@ -208,6 +282,13 @@ function getEciEncodingLabel(assignmentNumber: number): string {
   }
 }
 
+/**
+ * Decodes the QR segment stream carried by corrected data codewords.
+ *
+ * @param dataCodewords - Corrected data codewords in logical order.
+ * @param version - QR version used to determine segment count widths.
+ * @returns Decoded text, bytes, inferred payload kind, and segment headers.
+ */
 function decodePayloadFromDataCodewords(
   dataCodewords: readonly number[],
   version: number,
@@ -247,6 +328,7 @@ function decodePayloadFromDataCodewords(
   const byteCountBits = version <= 9 ? 8 : 16;
   const kanjiCountBits = version <= 9 ? 8 : version <= 26 ? 10 : 12;
 
+  // Walk the mode stream one segment at a time, updating the active ECI state as needed.
   while (reader.remaining() >= 4) {
     const mode = reader.read(4);
     if (mode === 0) {
@@ -331,6 +413,12 @@ function decodePayloadFromDataCodewords(
   };
 }
 
+/**
+ * Packs a bit array into byte-aligned codewords.
+ *
+ * @param bits - Bits to pack, most-significant bit first.
+ * @returns Packed bytes.
+ */
 function bytesFromBits(bits: readonly number[]): Uint8Array {
   if (bits.length % 8 !== 0) {
     throw new ScannerError('decode_failed', 'Bit stream length is not byte-aligned.');
@@ -347,6 +435,13 @@ function bytesFromBits(bits: readonly number[]): Uint8Array {
   return bytes;
 }
 
+/**
+ * Reads data-module bits from an unmasked QR matrix.
+ *
+ * @param matrix - Unmasked QR matrix.
+ * @param reserved - Function-module reservation mask.
+ * @returns Data bits in QR scan order.
+ */
 function extractDataBits(matrix: boolean[][], reserved: boolean[][]): number[] {
   const positions = buildDataModulePositions(matrix.length, reserved);
   const bits: number[] = [];
@@ -363,6 +458,13 @@ interface RawBlock {
   readonly ecCodewords: number[];
 }
 
+/**
+ * Splits interleaved QR codewords into their original RS blocks.
+ *
+ * @param codewords - Interleaved codeword stream read from the matrix.
+ * @param blockInfo - Block layout for the current version and EC level.
+ * @returns Raw blocks containing separated data and ECC codewords.
+ */
 function splitInterleavedCodewords(
   codewords: readonly number[],
   blockInfo: ReturnType<typeof getVersionBlockInfo>,
@@ -381,6 +483,7 @@ function splitInterleavedCodewords(
   let offset = 0;
   const maxDataCodewords = Math.max(...blocks.map((block) => block.dataCodewords.length), 0);
 
+  // QR interleaves all first data bytes, then all second data bytes, and so on before ECC bytes.
   for (let index = 0; index < maxDataCodewords; index += 1) {
     for (const block of blocks) {
       if (index < block.dataCodewords.length) {
@@ -407,6 +510,12 @@ function splitInterleavedCodewords(
   return blocks;
 }
 
+/**
+ * Corrects each RS block independently and reassembles the logical data stream.
+ *
+ * @param blocks - Raw blocks containing data and ECC codewords.
+ * @returns Corrected data codewords in logical order.
+ */
 function correctAndReinterleaveDataCodewords(blocks: RawBlock[]): number[] {
   const correctedBlocks = blocks.map((block) => {
     const corrected = correctRsBlock(
@@ -437,6 +546,13 @@ function correctAndReinterleaveDataCodewords(blocks: RawBlock[]): number[] {
   return result;
 }
 
+/**
+ * Decodes a logical QR module grid all the way to a public scan result.
+ *
+ * @param input - Square boolean grid representing dark and light modules.
+ * @returns A decoded QR payload with structural metadata.
+ * @throws {ScannerError} Thrown when the grid is malformed or cannot be decoded.
+ */
 export async function decodeGridLogical(input: {
   readonly grid: readonly (readonly boolean[])[];
 }): Promise<DecodeGridResult> {
@@ -464,6 +580,7 @@ export async function decodeGridLogical(input: {
     );
   }
 
+  // Strip the data mask, rebuild RS blocks, correct them, and only then parse the segment stream.
   const reserved = buildFunctionModuleMask(size, versionFromSize);
   const unmasked = unmask(matrix, maskPattern, reserved);
   const dataBits = extractDataBits(unmasked, reserved);

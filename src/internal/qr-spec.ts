@@ -43,10 +43,27 @@ const FORMAT_INFO_FIRST_COPY_POSITIONS: readonly (readonly [number, number])[] =
   [0, 8],
 ];
 
+/**
+ * Creates a square boolean matrix initialized to a uniform value.
+ *
+ * @param size - Width and height of the matrix.
+ * @param value - Initial value for every cell.
+ * @returns A square boolean matrix of the requested size.
+ */
 function createMatrix(size: number, value: boolean): boolean[][] {
   return Array.from({ length: size }, () => Array.from({ length: size }, () => value));
 }
 
+/**
+ * Marks every cell inside a rectangle as reserved.
+ *
+ * @param mask - Reservation mask being mutated in place.
+ * @param top - Top row of the rectangle.
+ * @param left - Left column of the rectangle.
+ * @param height - Rectangle height in modules.
+ * @param width - Rectangle width in modules.
+ * @returns Nothing.
+ */
 function markRectangle(
   mask: boolean[][],
   top: number,
@@ -68,6 +85,13 @@ function markRectangle(
   }
 }
 
+/**
+ * Marks an explicit set of cells as reserved.
+ *
+ * @param mask - Reservation mask being mutated in place.
+ * @param positions - Row and column pairs to mark.
+ * @returns Nothing.
+ */
 function markCells(mask: boolean[][], positions: readonly (readonly [number, number])[]): void {
   for (const [row, col] of positions) {
     const currentRow = mask[row];
@@ -81,6 +105,13 @@ function markCells(mask: boolean[][], positions: readonly (readonly [number, num
   }
 }
 
+/**
+ * Reads a bit sequence from the given matrix coordinates.
+ *
+ * @param matrix - QR module matrix to read from.
+ * @param positions - Ordered row and column pairs to read.
+ * @returns The collected bits packed into an integer.
+ */
 function readBits(matrix: boolean[][], positions: readonly (readonly [number, number])[]): number {
   let value = 0;
 
@@ -91,6 +122,12 @@ function readBits(matrix: boolean[][], positions: readonly (readonly [number, nu
   return value;
 }
 
+/**
+ * Counts the number of set bits in an integer.
+ *
+ * @param value - Integer to inspect.
+ * @returns The Hamming weight of the integer.
+ */
 function bitCount(value: number): number {
   let count = 0;
   let bits = value;
@@ -103,11 +140,19 @@ function bitCount(value: number): number {
   return count;
 }
 
+/**
+ * Builds the masked 15-bit QR format information codeword.
+ *
+ * @param ecl - Error correction level to encode.
+ * @param maskPattern - Data mask pattern to encode.
+ * @returns The fully encoded and masked format information value.
+ */
 export function buildFormatInfoCodeword(ecl: QrErrorCorrectionLevel, maskPattern: number): number {
   const data = ((FORMAT_INFO_ECL_BITS[ecl] ?? 0) << 3) | maskPattern;
   let value = data << 10;
   const generator = 0x537;
 
+  // Divide by the BCH generator polynomial to compute the 10-bit remainder.
   for (let bit = 14; bit >= 10; bit -= 1) {
     if ((value & (1 << bit)) === 0) {
       continue;
@@ -119,6 +164,13 @@ export function buildFormatInfoCodeword(ecl: QrErrorCorrectionLevel, maskPattern
   return ((data << 10) | value) ^ 0x5412;
 }
 
+/**
+ * Builds the 18-bit QR version information codeword.
+ *
+ * @param version - QR version in the range 7 through 40.
+ * @returns The BCH-protected version information value.
+ * @throws {ScannerError} Thrown when the version is outside the range that stores version bits.
+ */
 export function buildVersionInfoCodeword(version: number): number {
   if (version < 7 || version > 40) {
     throw new ScannerError(
@@ -131,6 +183,7 @@ export function buildVersionInfoCodeword(version: number): number {
   let value = data << 12;
   const generator = 0x1f25;
 
+  // Divide by the BCH generator polynomial to compute the 12-bit remainder.
   for (let bit = 17; bit >= 12; bit -= 1) {
     if ((value & (1 << bit)) === 0) {
       continue;
@@ -142,6 +195,12 @@ export function buildVersionInfoCodeword(version: number): number {
   return (data << 12) | value;
 }
 
+/**
+ * Returns the matrix coordinates for the second copy of the format bits.
+ *
+ * @param size - Side length of the QR matrix.
+ * @returns Ordered coordinates for the mirrored format information copy.
+ */
 function getFormatInfoSecondCopyPositions(size: number): readonly (readonly [number, number])[] {
   return [
     [8, size - 1],
@@ -162,6 +221,12 @@ function getFormatInfoSecondCopyPositions(size: number): readonly (readonly [num
   ];
 }
 
+/**
+ * Returns the matrix coordinates for the first copy of the version bits.
+ *
+ * @param size - Side length of the QR matrix.
+ * @returns Ordered coordinates for the top-right version information copy.
+ */
 function getVersionInfoFirstCopyPositions(size: number): readonly (readonly [number, number])[] {
   return Array.from(
     { length: 18 },
@@ -169,6 +234,12 @@ function getVersionInfoFirstCopyPositions(size: number): readonly (readonly [num
   );
 }
 
+/**
+ * Returns the matrix coordinates for the second copy of the version bits.
+ *
+ * @param size - Side length of the QR matrix.
+ * @returns Ordered coordinates for the bottom-left version information copy.
+ */
 function getVersionInfoSecondCopyPositions(size: number): readonly (readonly [number, number])[] {
   return Array.from(
     { length: 18 },
@@ -176,6 +247,13 @@ function getVersionInfoSecondCopyPositions(size: number): readonly (readonly [nu
   );
 }
 
+/**
+ * Converts a matrix size into its QR Model 2 version number.
+ *
+ * @param size - Side length of the square QR matrix.
+ * @returns The inferred QR version.
+ * @throws {ScannerError} Thrown when the size does not match a supported QR version.
+ */
 export function getVersionFromSize(size: number): number {
   const version = (size - 17) / 4;
   if (!Number.isInteger(version) || version < 1 || version > 40) {
@@ -185,6 +263,15 @@ export function getVersionFromSize(size: number): number {
   return version;
 }
 
+/**
+ * Evaluates whether a mask pattern applies at a specific module coordinate.
+ *
+ * @param maskPattern - QR mask pattern number.
+ * @param row - Module row.
+ * @param col - Module column.
+ * @returns True when the module should be flipped by the mask.
+ * @throws {ScannerError} Thrown when the mask pattern is unknown.
+ */
 export function maskApplies(maskPattern: number, row: number, col: number): boolean {
   switch (maskPattern) {
     case 0:
@@ -208,14 +295,38 @@ export function maskApplies(maskPattern: number, row: number, col: number): bool
   }
 }
 
+/**
+ * Marks the reserved area occupied by a finder pattern and its separator.
+ *
+ * @param mask - Reservation mask being mutated in place.
+ * @param top - Top row of the finder pattern.
+ * @param left - Left column of the finder pattern.
+ * @returns Nothing.
+ */
 function markFinderPattern(mask: boolean[][], top: number, left: number): void {
   markRectangle(mask, top, left, 8, 8);
 }
 
+/**
+ * Marks the reserved area occupied by an alignment pattern.
+ *
+ * @param mask - Reservation mask being mutated in place.
+ * @param centerRow - Alignment pattern center row.
+ * @param centerCol - Alignment pattern center column.
+ * @returns Nothing.
+ */
 function markAlignmentPattern(mask: boolean[][], centerRow: number, centerCol: number): void {
   markRectangle(mask, centerRow - 2, centerCol - 2, 5, 5);
 }
 
+/**
+ * Builds a mask of every function module reserved by the QR specification.
+ *
+ * @param size - Side length of the QR matrix.
+ * @param version - QR version represented by the matrix.
+ * @returns A matrix whose true cells are reserved function modules.
+ * @throws {ScannerError} Thrown when the version is invalid or the matrix cannot be constructed.
+ */
 export function buildFunctionModuleMask(size: number, version: number): boolean[][] {
   const mask = createMatrix(size, false);
 
@@ -223,6 +334,8 @@ export function buildFunctionModuleMask(size: number, version: number): boolean[
     throw new ScannerError('invalid_input', `Invalid QR version: ${version}`);
   }
 
+  // Reserve finder patterns, timing patterns, alignment patterns, format info, version info,
+  // and the dark module so data extraction can skip them later.
   markFinderPattern(mask, 0, 0);
   markFinderPattern(mask, 0, size - 8);
   markFinderPattern(mask, size - 8, 0);
@@ -281,6 +394,13 @@ export function buildFunctionModuleMask(size: number, version: number): boolean[
   return mask;
 }
 
+/**
+ * Decodes the QR format information from either embedded copy.
+ *
+ * @param matrix - QR module matrix including function modules.
+ * @returns The decoded error correction level and mask pattern.
+ * @throws {ScannerError} Thrown when neither copy can be decoded within QR tolerance.
+ */
 export function decodeFormatInfo(matrix: boolean[][]): {
   readonly errorCorrectionLevel: QrErrorCorrectionLevel;
   readonly maskPattern: number;
@@ -292,6 +412,7 @@ export function decodeFormatInfo(matrix: boolean[][]): {
   let bestEcl: QrErrorCorrectionLevel = 'M';
   let bestMask = 0;
 
+  // Compare both embedded copies against every legal codeword and keep the closest match.
   for (const observed of [
     readBits(matrix, firstCopyPositions),
     readBits(matrix, secondCopyPositions),
@@ -316,6 +437,13 @@ export function decodeFormatInfo(matrix: boolean[][]): {
   return { errorCorrectionLevel: bestEcl, maskPattern: bestMask };
 }
 
+/**
+ * Decodes the QR version information from the matrix.
+ *
+ * @param matrix - QR module matrix including function modules.
+ * @returns The decoded QR version.
+ * @throws {ScannerError} Thrown when the version information cannot be decoded within tolerance.
+ */
 export function decodeVersionInfo(matrix: boolean[][]): number {
   const size = matrix.length;
   const version = getVersionFromSize(size);
@@ -352,6 +480,14 @@ export function decodeVersionInfo(matrix: boolean[][]): number {
   return bestVersion;
 }
 
+/**
+ * Looks up the Reed-Solomon block layout for a QR version and EC level.
+ *
+ * @param version - QR version number.
+ * @param errorCorrectionLevel - QR error correction level.
+ * @returns Block-level codeword counts for the requested QR symbol shape.
+ * @throws {ScannerError} Thrown when the version or table entry is missing.
+ */
 export function getVersionBlockInfo(
   version: number,
   errorCorrectionLevel: QrErrorCorrectionLevel,
@@ -375,6 +511,7 @@ export function getVersionBlockInfo(
   let dataCodewords = 0;
   let ecCodewordsPerBlock = 0;
 
+  // The QR table stores repeating triples: block count, total codewords, and data codewords.
   for (let index = 0; index < table.length; index += 3) {
     const count = table[index] ?? 0;
     const total = table[index + 1] ?? 0;
@@ -398,6 +535,12 @@ export function getVersionBlockInfo(
   };
 }
 
+/**
+ * Convenience lookup for the version 1 block layout.
+ *
+ * @param errorCorrectionLevel - QR error correction level.
+ * @returns Total, data, and ECC codeword counts for version 1.
+ */
 export function getVersion1BlockInfo(errorCorrectionLevel: QrErrorCorrectionLevel): {
   readonly totalCodewords: number;
   readonly dataCodewords: number;
@@ -411,6 +554,12 @@ export function getVersion1BlockInfo(errorCorrectionLevel: QrErrorCorrectionLeve
   };
 }
 
+/**
+ * Returns the number of remainder bits appended after the codewords for a version.
+ *
+ * @param version - QR version number.
+ * @returns The number of remainder bits for that version.
+ */
 export function getRemainderBits(version: number): number {
   if (version === 1) {
     return 0;
@@ -439,6 +588,13 @@ export function getRemainderBits(version: number): number {
   return 0;
 }
 
+/**
+ * Enumerates data-module coordinates in the QR zig-zag scan order.
+ *
+ * @param size - Side length of the QR matrix.
+ * @param reserved - Reservation mask marking function modules.
+ * @returns Ordered row and column pairs for every data module.
+ */
 export function buildDataModulePositions(
   size: number,
   reserved: boolean[][],
@@ -448,6 +604,7 @@ export function buildDataModulePositions(
   let row = size - 1;
   let direction = -1;
 
+  // Walk the matrix in the standard two-column zig-zag, skipping the timing column.
   for (let col = size - 1; col > 0; ) {
     if (col === 6) {
       col -= 1;
@@ -476,6 +633,15 @@ export function buildDataModulePositions(
   return positions;
 }
 
+/**
+ * Removes the selected data mask from a QR matrix.
+ *
+ * @param matrix - QR module matrix to unmask.
+ * @param maskPattern - Mask pattern that was applied when the symbol was encoded.
+ * @param reserved - Reservation mask marking function modules.
+ * @returns A copy of the matrix with data modules unmasked.
+ * @throws {ScannerError} Thrown when the output matrix is unexpectedly malformed.
+ */
 export function unmask(
   matrix: boolean[][],
   maskPattern: number,

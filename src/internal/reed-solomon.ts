@@ -4,12 +4,20 @@ let tablesInitialized = false;
 const EXP_TABLE = new Uint8Array(512);
 const LOG_TABLE = new Uint8Array(256);
 
+/**
+ * Lazily initializes the GF(256) log and exponent tables used by QR Reed-Solomon math.
+ *
+ * @returns Nothing.
+ */
 function initializeTables(): void {
   if (tablesInitialized) {
     return;
   }
 
   let x = 1;
+
+  // Build the canonical GF(256) tables for the QR primitive polynomial, then extend the
+  // exponent table so multiplication can index without explicit modulo operations.
   for (let i = 0; i < 255; i += 1) {
     EXP_TABLE[i] = x;
     LOG_TABLE[x] = i;
@@ -26,10 +34,24 @@ function initializeTables(): void {
   tablesInitialized = true;
 }
 
+/**
+ * Adds two GF(256) elements.
+ *
+ * @param left - First field element.
+ * @param right - Second field element.
+ * @returns The field sum.
+ */
 function gfAdd(left: number, right: number): number {
   return left ^ right;
 }
 
+/**
+ * Multiplies two GF(256) elements.
+ *
+ * @param left - First field element.
+ * @param right - Second field element.
+ * @returns The field product.
+ */
 function gfMultiply(left: number, right: number): number {
   if (left === 0 || right === 0) {
     return 0;
@@ -39,6 +61,13 @@ function gfMultiply(left: number, right: number): number {
   return EXP_TABLE[(LOG_TABLE[left] ?? 0) + (LOG_TABLE[right] ?? 0)] ?? 0;
 }
 
+/**
+ * Computes the multiplicative inverse of a GF(256) element.
+ *
+ * @param value - Non-zero field element.
+ * @returns The multiplicative inverse.
+ * @throws {Error} Thrown when attempting to invert zero.
+ */
 function gfInverse(value: number): number {
   if (value === 0) {
     throw new Error('Cannot invert zero in GF(256).');
@@ -48,6 +77,13 @@ function gfInverse(value: number): number {
   return EXP_TABLE[255 - (LOG_TABLE[value] ?? 0)] ?? 0;
 }
 
+/**
+ * Multiplies two polynomials whose coefficients live in GF(256).
+ *
+ * @param left - Left polynomial coefficients.
+ * @param right - Right polynomial coefficients.
+ * @returns The product polynomial coefficients.
+ */
 function polynomialMultiply(left: readonly number[], right: readonly number[]): number[] {
   const result = new Array<number>(left.length + right.length - 1).fill(0);
 
@@ -62,6 +98,12 @@ function polynomialMultiply(left: readonly number[], right: readonly number[]): 
   return result;
 }
 
+/**
+ * Builds the Reed-Solomon generator polynomial for the requested ECC width.
+ *
+ * @param ecCodewords - Number of error-correction codewords to generate.
+ * @returns Generator polynomial coefficients.
+ */
 function buildGeneratorPolynomial(ecCodewords: number): number[] {
   initializeTables();
 
@@ -73,9 +115,17 @@ function buildGeneratorPolynomial(ecCodewords: number): number[] {
   return generator;
 }
 
+/**
+ * Minimal polynomial helper used by the Reed-Solomon decoder.
+ */
 class GenericGFPoly {
   readonly coefficients: number[];
 
+  /**
+   * Normalizes a polynomial by trimming leading zero coefficients.
+   *
+   * @param coefficients - Polynomial coefficients from highest to lowest degree.
+   */
   constructor(coefficients: readonly number[]) {
     if (coefficients.length === 0) {
       throw new Error('Polynomial must contain at least one coefficient.');
@@ -89,10 +139,22 @@ class GenericGFPoly {
     this.coefficients = Array.from(coefficients.slice(firstNonZero));
   }
 
+  /**
+   * Creates the zero polynomial.
+   *
+   * @returns A polynomial representing zero.
+   */
   static zero(): GenericGFPoly {
     return new GenericGFPoly([0]);
   }
 
+  /**
+   * Creates a monomial of the form coefficient × x^degree.
+   *
+   * @param degree - Exponent of the monomial.
+   * @param coefficient - Leading coefficient.
+   * @returns The requested monomial.
+   */
   static monomial(degree: number, coefficient: number): GenericGFPoly {
     if (degree < 0) {
       throw new Error(`Invalid monomial degree: ${degree}`);
@@ -105,18 +167,40 @@ class GenericGFPoly {
     return new GenericGFPoly([coefficient, ...Array.from({ length: degree }, () => 0)]);
   }
 
+  /**
+   * Returns the highest degree with a non-zero coefficient.
+   *
+   * @returns The polynomial degree.
+   */
   get degree(): number {
     return this.coefficients.length - 1;
   }
 
+  /**
+   * Checks whether the polynomial is exactly zero.
+   *
+   * @returns True when the polynomial is zero.
+   */
   isZero(): boolean {
     return this.coefficients.length === 1 && (this.coefficients[0] ?? 0) === 0;
   }
 
+  /**
+   * Returns the coefficient for a specific power of x.
+   *
+   * @param degree - Degree whose coefficient should be read.
+   * @returns The coefficient for that degree.
+   */
   getCoefficient(degree: number): number {
     return this.coefficients[this.coefficients.length - 1 - degree] ?? 0;
   }
 
+  /**
+   * Evaluates the polynomial at a field element.
+   *
+   * @param value - Field element to plug into the polynomial.
+   * @returns The evaluated field element.
+   */
   evaluateAt(value: number): number {
     if (value === 0) {
       return this.getCoefficient(0);
@@ -130,6 +214,12 @@ class GenericGFPoly {
     return result;
   }
 
+  /**
+   * Adds or subtracts another polynomial.
+   *
+   * @param other - Polynomial to combine with this one.
+   * @returns The combined polynomial.
+   */
   addOrSubtract(other: GenericGFPoly): GenericGFPoly {
     if (this.isZero()) {
       return other;
@@ -154,6 +244,12 @@ class GenericGFPoly {
     return new GenericGFPoly(result);
   }
 
+  /**
+   * Multiplies this polynomial by another polynomial.
+   *
+   * @param other - Polynomial multiplier.
+   * @returns The product polynomial.
+   */
   multiply(other: GenericGFPoly): GenericGFPoly {
     if (this.isZero() || other.isZero()) {
       return GenericGFPoly.zero();
@@ -174,6 +270,12 @@ class GenericGFPoly {
     return new GenericGFPoly(result);
   }
 
+  /**
+   * Multiplies every coefficient by a scalar field element.
+   *
+   * @param scalar - Field element multiplier.
+   * @returns The scaled polynomial.
+   */
   multiplyScalar(scalar: number): GenericGFPoly {
     if (scalar === 0) {
       return GenericGFPoly.zero();
@@ -188,6 +290,13 @@ class GenericGFPoly {
     );
   }
 
+  /**
+   * Multiplies the polynomial by coefficient × x^degree.
+   *
+   * @param degree - Degree of the monomial multiplier.
+   * @param coefficient - Coefficient of the monomial multiplier.
+   * @returns The shifted and scaled polynomial.
+   */
   multiplyByMonomial(degree: number, coefficient: number): GenericGFPoly {
     if (degree < 0) {
       throw new Error(`Invalid monomial degree: ${degree}`);
@@ -204,6 +313,14 @@ class GenericGFPoly {
   }
 }
 
+/**
+ * Runs the Euclidean algorithm to derive the error locator and evaluator polynomials.
+ *
+ * @param a - Higher-degree polynomial input.
+ * @param b - Lower-degree polynomial input.
+ * @param ecCodewords - Number of ECC codewords in the block.
+ * @returns A tuple of [error locator, error evaluator].
+ */
 function runEuclideanAlgorithm(
   a: GenericGFPoly,
   b: GenericGFPoly,
@@ -218,6 +335,7 @@ function runEuclideanAlgorithm(
   let tLast = GenericGFPoly.zero();
   let t = new GenericGFPoly([1]);
 
+  // Continue until the remainder has low enough degree to represent the evaluator polynomial.
   while (r.degree >= ecCodewords / 2) {
     const rLastLast = rLast;
     const tLastLast = tLast;
@@ -253,6 +371,12 @@ function runEuclideanAlgorithm(
   return [t.multiplyScalar(inverse), r.multiplyScalar(inverse)];
 }
 
+/**
+ * Finds every error location encoded by an error locator polynomial.
+ *
+ * @param errorLocator - Error locator polynomial.
+ * @returns Field elements representing each error location.
+ */
 function findErrorLocations(errorLocator: GenericGFPoly): number[] {
   const numberOfErrors = errorLocator.degree;
   if (numberOfErrors === 0) {
@@ -273,6 +397,13 @@ function findErrorLocations(errorLocator: GenericGFPoly): number[] {
   return result;
 }
 
+/**
+ * Computes the magnitude of each located Reed-Solomon error.
+ *
+ * @param errorEvaluator - Error evaluator polynomial.
+ * @param errorLocations - Field elements representing each error location.
+ * @returns Error magnitudes aligned to the provided locations.
+ */
 function findErrorMagnitudes(
   errorEvaluator: GenericGFPoly,
   errorLocations: readonly number[],
@@ -299,11 +430,19 @@ function findErrorMagnitudes(
   return result;
 }
 
+/**
+ * Generates Reed-Solomon ECC bytes for a data block.
+ *
+ * @param data - Data codewords to protect.
+ * @param ecCodewords - Number of ECC codewords to generate.
+ * @returns The ECC bytes for the provided data block.
+ */
 export function rsEncode(data: readonly number[], ecCodewords: number): Uint8Array {
   const generator = buildGeneratorPolynomial(ecCodewords);
   const buffer = new Uint8Array(data.length + ecCodewords);
   buffer.set(data);
 
+  // Perform polynomial long division; the remainder becomes the ECC payload.
   for (let index = 0; index < data.length; index += 1) {
     const factor = buffer[index] ?? 0;
     if (factor === 0) {
@@ -319,12 +458,20 @@ export function rsEncode(data: readonly number[], ecCodewords: number): Uint8Arr
   return buffer.slice(data.length);
 }
 
+/**
+ * Corrects a full Reed-Solomon block containing data and ECC codewords.
+ *
+ * @param received - Received block codewords.
+ * @param ecCodewords - Number of ECC codewords at the tail of the block.
+ * @returns The corrected block codewords.
+ */
 export function correctRsBlock(received: readonly number[], ecCodewords: number): Uint8Array {
   const work = Array.from(received);
   const poly = new GenericGFPoly(work);
   const syndromeCoefficients = new Array<number>(ecCodewords).fill(0);
   let noError = true;
 
+  // A zero syndrome means the block is already valid and can be returned as-is.
   for (let i = 0; i < ecCodewords; i += 1) {
     const evaluation = poly.evaluateAt(EXP_TABLE[i] ?? 0);
     syndromeCoefficients[ecCodewords - 1 - i] = evaluation;
@@ -359,6 +506,13 @@ export function correctRsBlock(received: readonly number[], ecCodewords: number)
   return Uint8Array.from(work);
 }
 
+/**
+ * Verifies that the supplied ECC bytes match the given data bytes.
+ *
+ * @param data - Data codewords.
+ * @param ecc - Expected ECC codewords.
+ * @returns True when the ECC bytes match the encoded remainder.
+ */
 export function verifyRsBlock(data: readonly number[], ecc: readonly number[]): boolean {
   const expected = rsEncode(data, ecc.length);
 

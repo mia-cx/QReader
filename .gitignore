@@ -9,3 +9,4 @@ test-results
 .rts2_cache_*
 .rts2_cache
 *.tsbuildinfo
+benchmark-results.json

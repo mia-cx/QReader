@@ -45,7 +45,8 @@
     "typecheck": "tsc --noEmit",
     "package:quality": "bun run build && publint && attw --pack .",
     "changeset:version": "changeset version",
-    "changeset:publish": "changeset publish"
+    "changeset:publish": "changeset publish",
+    "benchmark": "bun run benchmark/cli.ts"
   },
   "dependencies": {
     "effect": "^4.0.0-beta.43"

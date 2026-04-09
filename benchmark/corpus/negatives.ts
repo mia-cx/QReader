@@ -114,8 +114,9 @@ function nearMissFormatGrid(version: number, ecl: Ecl): boolean[][] {
     const pos = FORMAT_INFO_FIRST_COPY_POSITIONS[index];
     if (pos) setModule(grid, pos[0], pos[1], ((corrupt >> (14 - index)) & 1) === 1);
   }
-  for (let index = 0; index < getFormatInfoSecondCopyPositions(size).length; index += 1) {
-    const pos = getFormatInfoSecondCopyPositions(size)[index];
+  const secondCopyPositions = getFormatInfoSecondCopyPositions(size);
+  for (let index = 0; index < secondCopyPositions.length; index += 1) {
+    const pos = secondCopyPositions[index];
     if (pos) setModule(grid, pos[0], pos[1], ((corrupt >> (14 - index)) & 1) === 1);
   }
 

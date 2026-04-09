@@ -3,7 +3,11 @@ import {
   buildFormatInfoCodeword,
   buildFunctionModuleMask,
   buildVersionInfoCodeword,
+  FORMAT_INFO_FIRST_COPY_POSITIONS,
+  getFormatInfoSecondCopyPositions,
   getVersionBlockInfo,
+  getVersionInfoFirstCopyPositions,
+  getVersionInfoSecondCopyPositions,
   maskApplies,
 } from '../../src/internal/qr-spec.js';
 import { ALIGNMENT_PATTERN_CENTERS } from '../../src/internal/qr-tables.js';
@@ -208,83 +212,30 @@ function buildMatrix(version: number, message: string): boolean[][] {
   }
 
   const formatBits = buildFormatInfoCodeword('M', 0);
-  const formatPositions: Array<readonly [number, number]> = [
-    [8, 0],
-    [8, 1],
-    [8, 2],
-    [8, 3],
-    [8, 4],
-    [8, 5],
-    [8, 7],
-    [8, 8],
-    [7, 8],
-    [5, 8],
-    [4, 8],
-    [3, 8],
-    [2, 8],
-    [1, 8],
-    [0, 8],
-  ];
-  for (let index = 0; index < formatPositions.length; index += 1) {
-    const position = formatPositions[index];
-    if (!position) {
-      continue;
-    }
 
+  for (let index = 0; index < FORMAT_INFO_FIRST_COPY_POSITIONS.length; index += 1) {
+    const position = FORMAT_INFO_FIRST_COPY_POSITIONS[index];
+    if (!position) continue;
     setModule(position[0], position[1], ((formatBits >> (14 - index)) & 1) === 1);
   }
 
-  const formatPositionsSecond: Array<readonly [number, number]> = [
-    [8, size - 1],
-    [8, size - 2],
-    [8, size - 3],
-    [8, size - 4],
-    [8, size - 5],
-    [8, size - 6],
-    [8, size - 7],
-    [8, size - 8],
-    [size - 7, 8],
-    [size - 6, 8],
-    [size - 5, 8],
-    [size - 4, 8],
-    [size - 3, 8],
-    [size - 2, 8],
-    [size - 1, 8],
-  ];
-  for (let index = 0; index < formatPositionsSecond.length; index += 1) {
-    const position = formatPositionsSecond[index];
-    if (!position) {
-      continue;
-    }
-
+  for (let index = 0; index < getFormatInfoSecondCopyPositions(size).length; index += 1) {
+    const position = getFormatInfoSecondCopyPositions(size)[index];
+    if (!position) continue;
     setModule(position[0], position[1], ((formatBits >> (14 - index)) & 1) === 1);
   }
 
   const versionBits = buildVersionInfoCodeword(version);
-  const versionPositionsTopRight = Array.from(
-    { length: 18 },
-    (_, index) => [Math.floor(index / 3), size - 11 + (index % 3)] as const,
-  );
-  const versionPositionsBottomLeft = Array.from(
-    { length: 18 },
-    (_, index) => [size - 11 + (index % 3), Math.floor(index / 3)] as const,
-  );
 
-  for (let index = 0; index < versionPositionsTopRight.length; index += 1) {
-    const position = versionPositionsTopRight[index];
-    if (!position) {
-      continue;
-    }
-
+  for (let index = 0; index < getVersionInfoFirstCopyPositions(size).length; index += 1) {
+    const position = getVersionInfoFirstCopyPositions(size)[index];
+    if (!position) continue;
     setModule(position[0], position[1], ((versionBits >> (17 - index)) & 1) === 1);
   }
 
-  for (let index = 0; index < versionPositionsBottomLeft.length; index += 1) {
-    const position = versionPositionsBottomLeft[index];
-    if (!position) {
-      continue;
-    }
-
+  for (let index = 0; index < getVersionInfoSecondCopyPositions(size).length; index += 1) {
+    const position = getVersionInfoSecondCopyPositions(size)[index];
+    if (!position) continue;
     setModule(position[0], position[1], ((versionBits >> (17 - index)) & 1) === 1);
   }
 

@@ -5,6 +5,8 @@ import {
   buildFormatInfoCodeword,
   buildFunctionModuleMask,
   buildVersionInfoCodeword,
+  FORMAT_INFO_FIRST_COPY_POSITIONS,
+  getFormatInfoSecondCopyPositions,
   getRemainderBits,
   getVersionBlockInfo,
   maskApplies,
@@ -30,42 +32,6 @@ const VALID_V7_M_RS_BLOCK = [
   236, 236, 236, 236, 236, 236, 236, 236, 236, 236, 236, 129, 93, 188, 173, 236, 74, 208, 229, 53,
   207, 223, 112, 34, 118, 223, 231, 66, 151,
 ] as const;
-
-const FORMAT_INFO_FIRST_COPY_POSITIONS: Array<readonly [number, number]> = [
-  [8, 0],
-  [8, 1],
-  [8, 2],
-  [8, 3],
-  [8, 4],
-  [8, 5],
-  [8, 7],
-  [8, 8],
-  [7, 8],
-  [5, 8],
-  [4, 8],
-  [3, 8],
-  [2, 8],
-  [1, 8],
-  [0, 8],
-];
-
-const FORMAT_INFO_SECOND_COPY_POSITIONS: Array<readonly [number, number]> = [
-  [8, V1_SIZE - 1],
-  [8, V1_SIZE - 2],
-  [8, V1_SIZE - 3],
-  [8, V1_SIZE - 4],
-  [8, V1_SIZE - 5],
-  [8, V1_SIZE - 6],
-  [8, V1_SIZE - 7],
-  [8, V1_SIZE - 8],
-  [V1_SIZE - 7, 8],
-  [V1_SIZE - 6, 8],
-  [V1_SIZE - 5, 8],
-  [V1_SIZE - 4, 8],
-  [V1_SIZE - 3, 8],
-  [V1_SIZE - 2, 8],
-  [V1_SIZE - 1, 8],
-];
 
 // ─── Bit helpers ───────────────────────────────────────────────────────────
 
@@ -168,8 +134,8 @@ function buildVersion1Grid(
     if (!position) continue;
     setModule(position[0], position[1], ((formatBits >> (14 - index)) & 1) === 1);
   }
-  for (let index = 0; index < FORMAT_INFO_SECOND_COPY_POSITIONS.length; index += 1) {
-    const position = FORMAT_INFO_SECOND_COPY_POSITIONS[index];
+  for (let index = 0; index < getFormatInfoSecondCopyPositions(V1_SIZE).length; index += 1) {
+    const position = getFormatInfoSecondCopyPositions(V1_SIZE)[index];
     if (!position) continue;
     setModule(position[0], position[1], ((formatBits >> (14 - index)) & 1) === 1);
   }

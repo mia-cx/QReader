@@ -1,5 +1,10 @@
 import { ScannerError } from '../../src/internal/errors.js';
-import { buildDataModulePositions, buildFunctionModuleMask } from '../../src/internal/qr-spec.js';
+import {
+  buildDataModulePositions,
+  buildFormatInfoCodeword,
+  buildFunctionModuleMask,
+  FORMAT_INFO_FIRST_COPY_POSITIONS,
+} from '../../src/internal/qr-spec.js';
 import { rsEncode } from '../../src/internal/reed-solomon.js';
 
 function buildGrid(): boolean[][] {
@@ -40,47 +45,14 @@ function buildGrid(): boolean[][] {
     setModule(index, 6, index % 2 === 0);
   }
 
-  // Format info for ECL=M, mask pattern 0, XOR mask 0x5412.
-  const formatBits = (() => {
-    const eclBits = 0b00; // M
-    const maskPattern = 0;
-    const data = (eclBits << 3) | maskPattern;
-    let value = data << 10;
-    const generator = 0x537;
-    for (let bit = 14; bit >= 10; bit -= 1) {
-      if ((value & (1 << bit)) === 0) {
-        continue;
-      }
-      value ^= generator << (bit - 10);
-    }
-    return (value ^ 0x5412) & 0x7fff;
-  })();
+  const formatBits = buildFormatInfoCodeword('M', 0);
 
-  const formatPositions: Array<readonly [number, number]> = [
-    [8, 0],
-    [8, 1],
-    [8, 2],
-    [8, 3],
-    [8, 4],
-    [8, 5],
-    [8, 7],
-    [8, 8],
-    [7, 8],
-    [5, 8],
-    [4, 8],
-    [3, 8],
-    [2, 8],
-    [1, 8],
-    [0, 8],
-  ];
-
-  for (let index = 0; index < formatPositions.length; index += 1) {
-    const position = formatPositions[index];
+  for (let index = 0; index < FORMAT_INFO_FIRST_COPY_POSITIONS.length; index += 1) {
+    const position = FORMAT_INFO_FIRST_COPY_POSITIONS[index];
     if (!position) {
       continue;
     }
-    const bit = ((formatBits >> (14 - index)) & 1) === 1;
-    setModule(position[0], position[1], bit);
+    setModule(position[0], position[1], ((formatBits >> (14 - index)) & 1) === 1);
   }
 
   for (let col = 8; col < size - 8; col += 1) {

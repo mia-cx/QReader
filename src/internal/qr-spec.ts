@@ -25,7 +25,7 @@ export const FORMAT_INFO_ECL_BITS: Record<QrErrorCorrectionLevel, number> = {
   H: 0b10,
 };
 
-const FORMAT_INFO_FIRST_COPY_POSITIONS: readonly (readonly [number, number])[] = [
+export const FORMAT_INFO_FIRST_COPY_POSITIONS: readonly (readonly [number, number])[] = [
   [8, 0],
   [8, 1],
   [8, 2],
@@ -201,7 +201,9 @@ export function buildVersionInfoCodeword(version: number): number {
  * @param size - Side length of the QR matrix.
  * @returns Ordered coordinates for the mirrored format information copy.
  */
-function getFormatInfoSecondCopyPositions(size: number): readonly (readonly [number, number])[] {
+export function getFormatInfoSecondCopyPositions(
+  size: number,
+): readonly (readonly [number, number])[] {
   return [
     [8, size - 1],
     [8, size - 2],
@@ -227,7 +229,9 @@ function getFormatInfoSecondCopyPositions(size: number): readonly (readonly [num
  * @param size - Side length of the QR matrix.
  * @returns Ordered coordinates for the top-right version information copy.
  */
-function getVersionInfoFirstCopyPositions(size: number): readonly (readonly [number, number])[] {
+export function getVersionInfoFirstCopyPositions(
+  size: number,
+): readonly (readonly [number, number])[] {
   return Array.from(
     { length: 18 },
     (_, index) => [Math.floor(index / 3), size - 11 + (index % 3)] as const,
@@ -240,7 +244,9 @@ function getVersionInfoFirstCopyPositions(size: number): readonly (readonly [num
  * @param size - Side length of the QR matrix.
  * @returns Ordered coordinates for the bottom-left version information copy.
  */
-function getVersionInfoSecondCopyPositions(size: number): readonly (readonly [number, number])[] {
+export function getVersionInfoSecondCopyPositions(
+  size: number,
+): readonly (readonly [number, number])[] {
   return Array.from(
     { length: 18 },
     (_, index) => [size - 11 + (index % 3), Math.floor(index / 3)] as const,

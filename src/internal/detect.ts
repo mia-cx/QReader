@@ -64,10 +64,11 @@ function crossCheckVertical(
   const col = Math.round(cx);
   const row = Math.round(cy);
 
-  // Scan up from center
+  // Scan up from center — center pixel must be dark; bail if rounding landed on light.
   let count0 = 0;
   let r = row;
   const centerColor = binary[r * width + col] ?? 255;
+  if (centerColor !== 0) return null;
   while (r >= 0 && (binary[r * width + col] ?? 255) === centerColor) {
     count0 += 1;
     r -= 1;

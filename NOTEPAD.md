@@ -1,0 +1,1 @@
+QR codes with blending mode of difference are cool looking, we should figure out a way to detect foreground vs background contrast "locally" between any cell and its neighbors because the fore- and background colors may not be consistent across the entire QR code area with different blend mode.

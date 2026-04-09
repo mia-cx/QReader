@@ -4,6 +4,7 @@ dist
 test-results
 .references
 .worktrees
+.plans
 .playwright
 .rts2_cache_*
 .rts2_cache

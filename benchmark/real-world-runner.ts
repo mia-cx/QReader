@@ -33,28 +33,36 @@ function expectedTextFor(entry: RealWorldBenchmarkEntry): string | null {
   return first ? first.text : null;
 }
 
+export function scoreRealWorldPositive(
+  entry: RealWorldBenchmarkEntry,
+  scan: { readonly succeeded: boolean; readonly results: readonly { readonly text: string }[] },
+): RealWorldPositiveResult {
+  const expected = expectedTextFor(entry);
+  const decodedText = scan.results[0]?.text ?? null;
+  const passed = expected === null ? scan.succeeded : scan.succeeded && decodedText === expected;
+
+  return {
+    entry,
+    passed,
+    decodedText,
+    expectedText: expected,
+    error: passed ? null : scan.succeeded ? 'text mismatch' : 'decode failed',
+  };
+}
+
 async function runRealWorldPositive(
   repoRoot: string,
   entry: RealWorldBenchmarkEntry,
 ): Promise<RealWorldPositiveResult> {
-  const expected = expectedTextFor(entry);
   try {
     const scan = await scanLocalImageFile(path.join(repoRoot, entry.assetPath));
-    const decodedText = scan.results[0]?.text ?? null;
-    const passed = scan.succeeded && expected !== null && decodedText === expected;
-    return {
-      entry,
-      passed,
-      decodedText,
-      expectedText: expected,
-      error: passed ? null : scan.succeeded ? 'text mismatch' : 'decode failed',
-    };
+    return scoreRealWorldPositive(entry, scan);
   } catch (error) {
     return {
       entry,
       passed: false,
       decodedText: null,
-      expectedText: expected,
+      expectedText: expectedTextFor(entry),
       error: error instanceof Error ? error.message : String(error),
     };
   }

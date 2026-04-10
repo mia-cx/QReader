@@ -5,7 +5,7 @@ import {
   FORMAT_INFO_FIRST_COPY_POSITIONS,
   getFormatInfoSecondCopyPositions,
   type QrErrorCorrectionLevel,
-} from '../../src/internal/qr-spec.js';
+} from '../../src/qr/index.js';
 import { buildQrGrid } from './generate.js';
 import type { Ecl, NegativeEntry } from './index.js';
 

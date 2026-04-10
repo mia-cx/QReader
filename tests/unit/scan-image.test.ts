@@ -1,19 +1,23 @@
 import { describe, expect, it } from 'bun:test';
-import { otsuBinarize, toGrayscale } from '../../src/internal/binarize.js';
-import { decodeGridLogical } from '../../src/internal/decode-grid.js';
-import { detectFinderPatterns } from '../../src/internal/detect.js';
-import { resolveGrid } from '../../src/internal/geometry.js';
+import { Effect } from 'effect';
+import {
+  detectFinderPatterns,
+  otsuBinarize,
+  resolveGrid,
+  sampleGrid,
+  toGrayscale,
+} from '../../src/image/index.js';
 import {
   buildDataModulePositions,
   buildFormatInfoCodeword,
   buildFunctionModuleMask,
+  decodeGridLogical,
   FORMAT_INFO_FIRST_COPY_POSITIONS,
   getFormatInfoSecondCopyPositions,
   getVersionBlockInfo,
   maskApplies,
-} from '../../src/internal/qr-spec.js';
-import { rsEncode } from '../../src/internal/reed-solomon.js';
-import { sampleGrid } from '../../src/internal/sample.js';
+  rsEncode,
+} from '../../src/qr/index.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -262,7 +266,7 @@ describe('single-image baseline pipeline (internal modules)', () => {
     if (resolution === null) return;
 
     const sampledGrid = sampleGrid(imageData.width, imageData.height, resolution, binary);
-    const result = await decodeGridLogical({ grid: sampledGrid });
+    const result = await Effect.runPromise(decodeGridLogical({ grid: sampledGrid }));
 
     expect(result.payload.text).toBe('HI');
     expect(result.version).toBe(1);

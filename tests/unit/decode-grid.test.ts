@@ -10,8 +10,8 @@ import {
   getRemainderBits,
   getVersionBlockInfo,
   maskApplies,
-} from '../../src/internal/qr-spec.js';
-import { rsEncode } from '../../src/internal/reed-solomon.js';
+  rsEncode,
+} from '../../src/qr/index.js';
 import { helloWorldV1MGrid } from '../fixtures/hello-world-v1-m.js';
 import { helloWorldV7MGrid } from '../fixtures/hello-world-v7-m.js';
 
@@ -221,7 +221,7 @@ describe('decodeGrid', () => {
 
   it('initializes GF tables before correcting a valid RS block in a fresh process', async () => {
     const { execFileSync } = await import('node:child_process');
-    const command = `import { correctRsBlock } from './src/internal/reed-solomon.ts'; const block = ${JSON.stringify(VALID_V7_M_RS_BLOCK)}; console.log(JSON.stringify(Array.from(correctRsBlock(block, 18))));`;
+    const command = `import { correctRsBlock } from './src/qr/index.ts'; const block = ${JSON.stringify(VALID_V7_M_RS_BLOCK)}; console.log(JSON.stringify(Array.from(correctRsBlock(block, 18))));`;
     const output = execFileSync('bun', ['-e', command], {
       cwd: REPO_ROOT,
       encoding: 'utf8',

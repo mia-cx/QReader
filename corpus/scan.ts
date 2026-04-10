@@ -1,9 +1,13 @@
+import { Effect } from 'effect';
 import sharp from 'sharp';
-import { otsuBinarize, toGrayscale } from '../src/internal/binarize.js';
-import { decodeGridLogical } from '../src/internal/decode-grid.js';
-import { detectFinderPatterns } from '../src/internal/detect.js';
-import { resolveGrid } from '../src/internal/geometry.js';
-import { sampleGrid } from '../src/internal/sample.js';
+import {
+  detectFinderPatterns,
+  otsuBinarize,
+  resolveGrid,
+  sampleGrid,
+  toGrayscale,
+} from '../src/image/index.js';
+import { decodeGridLogical } from '../src/qr/index.js';
 import type { AutoScan } from './schema.js';
 
 function makeImageData(width: number, height: number, pixels: Uint8ClampedArray): ImageData {
@@ -41,7 +45,7 @@ export async function scanLocalImageFile(imagePath: string): Promise<AutoScan> {
   const grid = sampleGrid(imageData.width, imageData.height, resolution, binary);
 
   try {
-    const decoded = await decodeGridLogical({ grid });
+    const decoded = await Effect.runPromise(decodeGridLogical({ grid }));
     return {
       attempted: true,
       succeeded: true,

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   DecodeGridInput,
   DecodeGridResult,
@@ -8,13 +9,24 @@ import type {
   ScanStreamInput,
   ScanStreamOptions,
 } from './contracts/index.js';
-import { decodeGridLogical } from './internal/decode-grid.js';
-import { notImplemented } from './internal/not-implemented.js';
-import { scanFrameInternal } from './internal/scan-frame.js';
+import { scanFrame as scanFrameEffect } from './image/index.js';
+import { decodeGridLogical } from './qr/index.js';
+import { notImplemented } from './runtime/index.js';
 
 export * from './contracts/index.js';
-export { ScannerError } from './internal/errors.js';
-export { ScannerNotImplementedError } from './internal/not-implemented.js';
+export { ScannerError } from './qr/index.js';
+export { ScannerNotImplementedError } from './runtime/index.js';
+
+/**
+ * Runs an internal Effect program at the public API boundary.
+ *
+ * Thin wrapper over `Effect.runPromise` so every Effect-returning internal
+ * funnels through a single entry point — a future home for tracing, service
+ * injection, or custom runtime configuration.
+ */
+function runEffect<A, E>(effect: Effect.Effect<A, E>): Promise<A> {
+  return Effect.runPromise(effect);
+}
 
 /**
  * Decodes a pre-sampled logical QR grid into a structured scan result.
@@ -23,7 +35,7 @@ export { ScannerNotImplementedError } from './internal/not-implemented.js';
  * @returns A promise for the decoded payload and QR metadata.
  */
 export async function decodeGrid(input: DecodeGridInput): Promise<DecodeGridResult> {
-  return decodeGridLogical({ grid: input.grid });
+  return runEffect(decodeGridLogical({ grid: input.grid }));
 }
 
 /**
@@ -39,7 +51,7 @@ export async function scanFrame(
   // Behavioral overrides (signal, maxCandidates, debug) will be wired in a future slice.
   _options?: ScanOptions,
 ): Promise<readonly ScanResult[]> {
-  return scanFrameInternal(input);
+  return runEffect(scanFrameEffect(input));
 }
 
 /**

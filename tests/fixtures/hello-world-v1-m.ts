@@ -1,11 +1,11 @@
-import { ScannerError } from '../../src/internal/errors.js';
 import {
   buildDataModulePositions,
   buildFormatInfoCodeword,
   buildFunctionModuleMask,
   FORMAT_INFO_FIRST_COPY_POSITIONS,
-} from '../../src/internal/qr-spec.js';
-import { rsEncode } from '../../src/internal/reed-solomon.js';
+  rsEncode,
+  ScannerError,
+} from '../../src/qr/index.js';
 
 function buildGrid(): boolean[][] {
   const size = 21;

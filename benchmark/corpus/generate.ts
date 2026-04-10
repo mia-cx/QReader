@@ -1,4 +1,5 @@
 import {
+  ALIGNMENT_PATTERN_CENTERS,
   buildDataModulePositions,
   buildFormatInfoCodeword,
   buildFunctionModuleMask,
@@ -11,9 +12,8 @@ import {
   getVersionInfoSecondCopyPositions,
   maskApplies,
   type QrErrorCorrectionLevel,
-} from '../../src/internal/qr-spec.js';
-import { ALIGNMENT_PATTERN_CENTERS } from '../../src/internal/qr-tables.js';
-import { rsEncode } from '../../src/internal/reed-solomon.js';
+  rsEncode,
+} from '../../src/qr/index.js';
 import type { Ecl, PositiveEntry } from './index.js';
 
 // ─── Bit helpers ──────────────────────────────────────────────────────────────

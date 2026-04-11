@@ -30,11 +30,11 @@
     "changeset:version": "changeset version",
     "changeset:publish": "changeset publish",
     "benchmark": "turbo run benchmark --filter=@ironqr/perfbench",
-    "corpus:import": "turbo run corpus:import --filter=ironqr-corpus-cli",
+    "corpus": "turbo run corpus --filter=ironqr-corpus-cli",
     "corpus:scrape": "turbo run corpus:scrape --filter=ironqr-corpus-cli",
     "corpus:review": "turbo run corpus:review --filter=ironqr-corpus-cli",
-    "corpus:import-staged": "turbo run corpus:import-staged --filter=ironqr-corpus-cli",
-    "corpus:export": "turbo run corpus:export --filter=ironqr-corpus-cli"
+    "corpus:import": "turbo run corpus:import --filter=ironqr-corpus-cli",
+    "corpus:build-bench": "turbo run corpus:build-bench --filter=ironqr-corpus-cli"
   },
   "workspaces": [
     "apps/*",

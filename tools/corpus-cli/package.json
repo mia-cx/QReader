@@ -24,13 +24,14 @@
     "test": "bun test tests/unit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "cli": "bun src/cli.ts",
-    "corpus:import": "bun src/cli.ts import-local",
-    "corpus:scrape": "bun src/cli.ts scrape-remote",
-    "corpus:review": "bun src/cli.ts review-staged",
-    "corpus:import-staged": "bun src/cli.ts import-staged",
-    "corpus:export": "bun src/cli.ts export-benchmark"
+    "corpus": "bun src/cli.ts",
+    "corpus:scrape": "bun src/cli.ts scrape",
+    "corpus:review": "bun src/cli.ts review",
+    "corpus:import": "bun src/cli.ts import",
+    "corpus:build-bench": "bun src/cli.ts build-bench"
   },
   "dependencies": {
+    "@clack/prompts": "^0.11.0",
     "effect": "^4.0.0-beta.43",
     "ironqr": "workspace:*",
     "sharp": "^0.34.4"

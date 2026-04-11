@@ -1,7 +1,10 @@
 export { buildOpenTargetInvocation } from './cli.js';
 export {
   buildRealWorldBenchmarkCorpus,
+  listBenchEligibleAssets,
+  readRealWorldBenchmarkFixture,
   writeRealWorldBenchmarkCorpus,
+  writeSelectedRealWorldBenchmarkFixture,
 } from './export/benchmark.js';
 export { importLocalAssets } from './import/local.js';
 export {

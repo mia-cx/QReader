@@ -1,9 +1,9 @@
 import path from 'node:path';
 import {
-  buildRealWorldBenchmarkCorpus,
   type RealWorldBenchmarkEntry,
+  readRealWorldBenchmarkFixture,
   scanLocalImageFile,
-} from 'ironqr-corpus-cli';
+} from '../../corpus-cli/src/index.js';
 
 export interface RealWorldPositiveResult {
   readonly entry: RealWorldBenchmarkEntry;
@@ -33,7 +33,7 @@ export interface RealWorldBenchmarkResult {
 export const runRealWorldBenchmark = async (
   repoRoot: string,
 ): Promise<RealWorldBenchmarkResult> => {
-  const corpus = await buildRealWorldBenchmarkCorpus(repoRoot);
+  const corpus = await readRealWorldBenchmarkFixture(repoRoot);
 
   const positiveResults = await Promise.all(
     corpus.positives.map((entry) => runRealWorldPositive(repoRoot, entry)),

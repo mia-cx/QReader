@@ -73,7 +73,7 @@ const buildMockFetch = (): ((input: string | URL) => Promise<Response>) => {
 };
 
 describe('interactive staged review', () => {
-  it('approves a staged asset, confirms license, asks qr count first, then accepts auto-scan truth', async () => {
+  it('approves staged asset and accepts auto-scan truth', async () => {
     const repoRoot = await createRepoRoot();
     const staged = await scrapeRemoteAssets(
       {
@@ -85,19 +85,16 @@ describe('interactive staged review', () => {
       buildMockFetch(),
     );
 
-    const prompts: string[] = [];
-    const answers = ['a', '', '1', 'y'];
-
     const summary = await reviewStagedAssets({
       stageDir: staged.stageDir,
       reviewer: 'mia',
-      prompt: async (message) => {
-        prompts.push(message);
-        const answer = answers.shift();
-        if (answer === undefined) {
-          throw new Error(`missing answer for prompt: ${message}`);
-        }
-        return answer;
+      chooseAction: async () => 'approve',
+      promptRejectionNotes: async () => undefined,
+      promptConfirmedLicense: async (_asset, suggestedLicense) => suggestedLicense,
+      promptQrCount: async () => 1,
+      confirmAcceptAutoScan: async () => true,
+      promptManualGroundTruth: async () => {
+        throw new Error('manual truth should not be needed');
       },
       scanAsset: async () => ({
         attempted: true,
@@ -110,8 +107,6 @@ describe('interactive staged review', () => {
     });
 
     expect(summary.approved).toBe(1);
-    expect(prompts[1]).toContain('license');
-    expect(prompts[2]).toContain('How many QR codes');
 
     const reviewed = await readStagedRemoteAsset(
       staged.stageDir,
@@ -134,55 +129,6 @@ describe('interactive staged review', () => {
     });
   });
 
-  it('reprompts when qr count is left blank before accepting the review', async () => {
-    const repoRoot = await createRepoRoot();
-    const staged = await scrapeRemoteAssets(
-      {
-        repoRoot,
-        seedUrls: ['https://pixabay.com/images/search/qr%20code/'],
-        label: 'qr-positive',
-        limit: 1,
-      },
-      buildMockFetch(),
-    );
-
-    const prompts: string[] = [];
-    const answers = ['a', '', '', '1', 'y'];
-
-    const summary = await reviewStagedAssets({
-      stageDir: staged.stageDir,
-      reviewer: 'mia',
-      prompt: async (message) => {
-        prompts.push(message);
-        const answer = answers.shift();
-        if (answer === undefined) {
-          throw new Error(`missing answer for prompt: ${message}`);
-        }
-        return answer;
-      },
-      scanAsset: async () => ({
-        attempted: true,
-        succeeded: true,
-        results: [{ text: 'https://example.com' }],
-      }),
-      openLocalImage: async () => {},
-      openSourcePage: async () => {},
-      log: () => {},
-    });
-
-    expect(summary.approved).toBe(1);
-    expect(prompts.filter((message) => message.includes('How many QR codes'))).toHaveLength(2);
-
-    const reviewed = await readStagedRemoteAsset(
-      staged.stageDir,
-      staged.assets[0]?.id ?? 'missing',
-    );
-    expect(reviewed.groundTruth).toEqual({
-      qrCount: 1,
-      codes: [{ text: 'https://example.com' }],
-    });
-  });
-
   it('skips already-reviewed staged assets on rerun without overwriting them', async () => {
     const repoRoot = await createRepoRoot();
     const staged = await scrapeRemoteAssets(
@@ -198,14 +144,13 @@ describe('interactive staged review', () => {
     await reviewStagedAssets({
       stageDir: staged.stageDir,
       reviewer: 'mia',
-      prompt: async (message) => {
-        if (message.includes('How many QR codes')) {
-          return '1';
-        }
-        if (message.includes('Accept auto-scan results')) {
-          return 'y';
-        }
-        return message.includes('license') ? '' : 'a';
+      chooseAction: async () => 'approve',
+      promptRejectionNotes: async () => undefined,
+      promptConfirmedLicense: async (_asset, suggestedLicense) => suggestedLicense,
+      promptQrCount: async () => 1,
+      confirmAcceptAutoScan: async () => true,
+      promptManualGroundTruth: async () => {
+        throw new Error('manual truth should not be needed');
       },
       scanAsset: async () => ({
         attempted: true,
@@ -221,9 +166,14 @@ describe('interactive staged review', () => {
     const summary = await reviewStagedAssets({
       stageDir: staged.stageDir,
       reviewer: 'mia',
-      prompt: async () => {
+      chooseAction: async () => {
         throw new Error('rerun should not prompt reviewed assets');
       },
+      promptRejectionNotes: async () => undefined,
+      promptConfirmedLicense: async () => undefined,
+      promptQrCount: async () => 0,
+      confirmAcceptAutoScan: async () => false,
+      promptManualGroundTruth: async () => ({ qrCount: 0, codes: [] }),
       scanAsset: async () => {
         throw new Error('rerun should not scan reviewed assets');
       },
@@ -237,7 +187,7 @@ describe('interactive staged review', () => {
     expect(after).toEqual(before);
   });
 
-  it('rejects a staged asset with reviewer notes', async () => {
+  it('rejects staged asset with reviewer notes', async () => {
     const repoRoot = await createRepoRoot();
     const staged = await scrapeRemoteAssets(
       {
@@ -249,18 +199,15 @@ describe('interactive staged review', () => {
       buildMockFetch(),
     );
 
-    const answers = ['r', 'not actually usable'];
-
     const summary = await reviewStagedAssets({
       stageDir: staged.stageDir,
       reviewer: 'mia',
-      prompt: async () => {
-        const answer = answers.shift();
-        if (answer === undefined) {
-          throw new Error('missing answer');
-        }
-        return answer;
-      },
+      chooseAction: async () => 'reject',
+      promptRejectionNotes: async () => 'not actually usable',
+      promptConfirmedLicense: async () => undefined,
+      promptQrCount: async () => 0,
+      confirmAcceptAutoScan: async () => false,
+      promptManualGroundTruth: async () => ({ qrCount: 0, codes: [] }),
       scanAsset: async () => ({
         attempted: true,
         succeeded: false,

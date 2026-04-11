@@ -3,10 +3,14 @@ import { mkdir, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import sharp from 'sharp';
-import { buildRealWorldBenchmarkCorpus } from '../../src/export/benchmark.js';
+import {
+  buildRealWorldBenchmarkCorpus,
+  writeSelectedRealWorldBenchmarkFixture,
+} from '../../src/export/benchmark.js';
 import { importLocalAssets } from '../../src/import/local.js';
 import {
   getCorpusManifestPath,
+  getPerfbenchFixtureManifestPath,
   readCorpusManifest,
   toRepoRelativePath,
   writeCorpusManifest,
@@ -401,5 +405,54 @@ describe('real-world corpus toolkit', () => {
       results: [{ text: 'https://example.com', kind: 'url' }],
       acceptedAsTruth: true,
     });
+  });
+
+  it('writes selected approved assets into committed perfbench fixture', async () => {
+    const repoRoot = await createRepoRoot();
+    const positivePath = path.join(repoRoot, 'fixtures', 'positive.png');
+    const negativePath = path.join(repoRoot, 'fixtures', 'negative.png');
+
+    await writeFixture(positivePath, await createPngBytes(255, 255, 255));
+    await writeFixture(negativePath, await createPngBytes(0, 0, 0));
+
+    await importLocalAssets({
+      repoRoot,
+      paths: [positivePath],
+      label: 'qr-positive',
+      reviewStatus: 'approved',
+      reviewer: 'mia',
+      groundTruth: {
+        qrCount: 1,
+        codes: [{ text: 'https://example.com' }],
+      },
+    });
+    await importLocalAssets({
+      repoRoot,
+      paths: [negativePath],
+      label: 'non-qr-negative',
+      reviewStatus: 'approved',
+      reviewer: 'mia',
+    });
+
+    const manifest = await readCorpusManifest(repoRoot);
+    const result = await writeSelectedRealWorldBenchmarkFixture(
+      repoRoot,
+      manifest.assets.map((asset) => asset.id),
+    );
+
+    expect(result.outputPath).toBe(getPerfbenchFixtureManifestPath(repoRoot));
+    expect(JSON.parse(await readFile(result.outputPath, 'utf8'))).toEqual(result.corpus);
+    expect(
+      result.corpus.positives[0]?.assetPath.startsWith(
+        'tools/perfbench/fixtures/real-world/assets/',
+      ),
+    ).toBe(true);
+    expect(
+      result.corpus.negatives[0]?.assetPath.startsWith(
+        'tools/perfbench/fixtures/real-world/assets/',
+      ),
+    ).toBe(true);
+    await stat(path.join(repoRoot, result.corpus.positives[0]?.assetPath ?? 'missing'));
+    await stat(path.join(repoRoot, result.corpus.negatives[0]?.assetPath ?? 'missing'));
   });
 });

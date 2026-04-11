@@ -1,4 +1,4 @@
-import { decodeGrid } from 'ironqr';
+import { decodeGrid } from '../../../packages/ironqr/src/index.js';
 import { generatePositiveCorpus } from './corpus/generate.js';
 import type { NegativeEntry, PositiveEntry } from './corpus/index.js';
 import { generateNegativeCorpus } from './corpus/negatives.js';

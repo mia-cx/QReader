@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { parseArgv } from '../../src/args.js';
 import {
   buildFilteredCliCommand,
   buildOpenTargetInvocation,
@@ -6,7 +7,7 @@ import {
   resolveRepoRootFromModuleUrl,
 } from '../../src/cli.js';
 
-describe('corpus cli opener', () => {
+describe('corpus cli helpers', () => {
   it('builds a Windows-safe opener invocation', () => {
     const target = 'https://example.com/a?x=1&y=2';
 
@@ -21,7 +22,7 @@ describe('corpus cli opener', () => {
     });
   });
 
-  it('derives the repo root from the CLI module location', () => {
+  it('derives repo root from CLI module location', () => {
     expect(
       resolveRepoRootFromModuleUrl(
         'file:///Users/mia/Development/mia-cx/QReader/tools/corpus-cli/src/cli.ts',
@@ -29,7 +30,7 @@ describe('corpus cli opener', () => {
     ).toBe('/Users/mia/Development/mia-cx/QReader');
   });
 
-  it('prefers an explicit repo root override', () => {
+  it('prefers explicit repo root override', () => {
     expect(
       resolveRepoRootFromModuleUrl(
         'file:///Users/mia/Development/mia-cx/QReader/tools/corpus-cli/src/cli.ts',
@@ -38,16 +39,32 @@ describe('corpus cli opener', () => {
     ).toBe('/tmp/ironqr-root');
   });
 
-  it('prints supported filtered CLI commands in usage text', () => {
+  it('prints new command surface in usage text', () => {
     const usage = getUsageText();
 
-    expect(usage).toContain('bun --filter ironqr-corpus-cli run cli -- review-staged');
-    expect(usage).not.toContain('bun run corpus/cli.ts');
+    expect(usage).toContain('build-bench');
+    expect(usage).toContain('guided scrape → review → import flow');
+    expect(usage).not.toContain('import-local');
+    expect(usage).not.toContain('export-benchmark');
   });
 
-  it('formats filtered CLI commands for follow-up steps', () => {
-    expect(buildFilteredCliCommand('import-staged', ['/tmp/stage-dir'])).toBe(
-      'bun --filter ironqr-corpus-cli run cli -- import-staged "/tmp/stage-dir"',
+  it('formats filtered CLI follow-up commands', () => {
+    expect(buildFilteredCliCommand('import', ['/tmp/stage-dir'])).toBe(
+      'bun --filter ironqr-corpus-cli run cli -- import "/tmp/stage-dir"',
     );
+  });
+
+  it('parses new command names and flags', () => {
+    expect(
+      parseArgv(['scrape', '--label', 'qr-positive', '--limit', '10', 'https://example.com']),
+    ).toEqual({
+      command: 'scrape',
+      help: false,
+      options: {
+        label: 'qr-positive',
+        limit: '10',
+      },
+      positionals: ['https://example.com'],
+    });
   });
 });

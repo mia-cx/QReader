@@ -108,6 +108,8 @@ export interface ImportLocalAssetOptions {
   readonly attribution?: string;
   readonly license?: string;
   readonly provenanceNotes?: string;
+  readonly groundTruth?: GroundTruth;
+  readonly licenseReview?: LicenseReview;
 }
 
 export interface ImportLocalAssetResult {
@@ -137,20 +139,22 @@ export interface ImportRemoteAssetResult {
   readonly manifest: CorpusManifest;
 }
 
-export interface RealWorldBenchmarkEntry {
-  readonly id: string;
-  readonly label: CorpusAssetLabel;
-  readonly assetPath: string;
-  readonly sha256: string;
-  readonly byteLength: number;
-  readonly mediaType: string;
-  readonly sourcePageUrl?: string;
-  readonly confirmedLicense?: string;
-  readonly groundTruth?: GroundTruth;
-  readonly autoScan?: AutoScan;
-}
+export const RealWorldBenchmarkEntrySchema = S.Struct({
+  id: S.String,
+  label: CorpusAssetLabelSchema,
+  assetPath: S.String,
+  sha256: S.String,
+  byteLength: S.Number,
+  mediaType: S.String,
+  sourcePageUrl: S.optional(S.String),
+  confirmedLicense: S.optional(S.String),
+  groundTruth: S.optional(GroundTruthSchema),
+  autoScan: S.optional(AutoScanSchema),
+});
+export type RealWorldBenchmarkEntry = S.Schema.Type<typeof RealWorldBenchmarkEntrySchema>;
 
-export interface RealWorldBenchmarkCorpus {
-  readonly positives: readonly RealWorldBenchmarkEntry[];
-  readonly negatives: readonly RealWorldBenchmarkEntry[];
-}
+export const RealWorldBenchmarkCorpusSchema = S.Struct({
+  positives: S.Array(RealWorldBenchmarkEntrySchema),
+  negatives: S.Array(RealWorldBenchmarkEntrySchema),
+});
+export type RealWorldBenchmarkCorpus = S.Schema.Type<typeof RealWorldBenchmarkCorpusSchema>;

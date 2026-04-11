@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
-import { scanFrame } from 'ironqr';
 import sharp from 'sharp';
+import { scanFrame } from '../../../packages/ironqr/src/index.js';
 import type { AutoScan } from './schema.js';
 
 export const scanLocalImageFile = (imagePath: string): Promise<AutoScan> => {

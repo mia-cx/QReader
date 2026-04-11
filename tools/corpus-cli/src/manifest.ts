@@ -31,6 +31,18 @@ export const getBenchmarkExportPath = (repoRoot: string): string => {
   return path.join(getCorpusDataRoot(repoRoot), 'benchmark-real-world.json');
 };
 
+export const getPerfbenchFixtureRoot = (repoRoot: string): string => {
+  return path.join(repoRoot, 'tools', 'perfbench', 'fixtures', 'real-world');
+};
+
+export const getPerfbenchFixtureAssetsRoot = (repoRoot: string): string => {
+  return path.join(getPerfbenchFixtureRoot(repoRoot), 'assets');
+};
+
+export const getPerfbenchFixtureManifestPath = (repoRoot: string): string => {
+  return path.join(getPerfbenchFixtureRoot(repoRoot), 'manifest.json');
+};
+
 export const ensureCorpusLayout = async (repoRoot: string): Promise<void> => {
   await mkdir(getCorpusAssetsRoot(repoRoot), { recursive: true });
 };

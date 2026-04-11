@@ -47,6 +47,8 @@ const importLocalAssetsEffect = (
         ...(options.reviewStatus ? { reviewStatus: options.reviewStatus } : {}),
         ...(options.reviewer ? { reviewer: options.reviewer } : {}),
         ...(options.reviewNotes ? { reviewNotes: options.reviewNotes } : {}),
+        ...(options.groundTruth ? { groundTruth: options.groundTruth } : {}),
+        ...(options.licenseReview ? { licenseReview: options.licenseReview } : {}),
       });
 
       if (result.deduped) {

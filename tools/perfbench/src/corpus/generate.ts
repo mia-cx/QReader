@@ -13,7 +13,7 @@ import {
   maskApplies,
   type QrErrorCorrectionLevel,
   rsEncode,
-} from 'ironqr/qr';
+} from '../../../../packages/ironqr/src/qr/index.js';
 import type { Ecl, PositiveEntry } from './index.js';
 
 const ECL_LEVELS: readonly Ecl[] = ['L', 'M', 'Q', 'H'];

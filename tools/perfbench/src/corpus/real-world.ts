@@ -1,11 +1,14 @@
 export type {
   RealWorldBenchmarkCorpus,
   RealWorldBenchmarkEntry,
-} from 'ironqr-corpus-cli';
+} from '../../../corpus-cli/src/index.js';
 export {
   buildRealWorldBenchmarkCorpus,
+  listBenchEligibleAssets,
+  readRealWorldBenchmarkFixture,
   writeRealWorldBenchmarkCorpus,
-} from 'ironqr-corpus-cli';
+  writeSelectedRealWorldBenchmarkFixture,
+} from '../../../corpus-cli/src/index.js';
 export {
   type RealWorldBenchmarkResult,
   type RealWorldNegativeResult,

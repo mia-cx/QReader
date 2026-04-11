@@ -1,20 +1,9 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolveRepoRootFromModuleUrl } from 'ironqr-corpus-cli';
 import { runRealWorldBenchmark } from './real-world-runner.js';
 import { buildReport, printRealWorldSummary, printSummary, writeReport } from './report.js';
 import { runBenchmark } from './runner.js';
 
-export const resolveRepoRootFromModuleUrl = (
-  moduleUrl: string,
-  override = process.env.IRONQR_REPO_ROOT,
-): string => {
-  if (override) {
-    return path.resolve(override);
-  }
-
-  const sourceDirectory = fileURLToPath(new URL('.', moduleUrl));
-  return path.resolve(sourceDirectory, '../../..');
-};
+export { resolveRepoRootFromModuleUrl };
 
 const main = async (): Promise<void> => {
   const result = await runBenchmark();

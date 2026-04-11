@@ -15,12 +15,11 @@ describe('corpus cli helpers', () => {
     const target = 'https://example.com/a?x=1&y=2';
 
     expect(buildOpenTargetInvocation(target, 'win32')).toEqual({
-      command: 'cmd',
-      args: ['/d', '/s', '/c', 'start', '""', `"${target}"`],
+      command: 'explorer.exe',
+      args: [target],
       options: {
         stdio: 'ignore',
         detached: true,
-        windowsVerbatimArguments: true,
       },
     });
   });

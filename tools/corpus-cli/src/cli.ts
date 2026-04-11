@@ -1,6 +1,5 @@
 import { execFileSync, spawn } from 'node:child_process';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { runApp } from './app.js';
 import { buildFilteredCliCommand, getUsageText } from './command-text.js';
 import {
@@ -9,6 +8,7 @@ import {
   type ViewerPreference,
   writeViewerPreference,
 } from './config.js';
+import { resolveRepoRootFromModuleUrl } from './repo-root.js';
 import { isInteractiveSession } from './tty.js';
 import { createClackUi } from './ui/clack.js';
 import { CliCancelledError, type CliUi } from './ui.js';
@@ -31,11 +31,19 @@ type OpenTargetInvocation = {
   readonly options: {
     readonly stdio: 'ignore';
     readonly detached: true;
-    readonly windowsVerbatimArguments?: true;
   };
 };
 
 const defaultViewerPreference: ViewerPreference = { mode: 'default' };
+
+const normalizeHttpTarget = (target: string): string => {
+  const url = new URL(target);
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error(`Expected http(s) URL, got ${url.protocol}`);
+  }
+
+  return url.toString();
+};
 
 const isPathLike = (value: string): boolean => {
   return value.includes(path.sep) || value.includes('/') || /^[A-Za-z]:\\/.test(value);
@@ -96,12 +104,9 @@ export const buildOpenTargetInvocation = (
     }
 
     return {
-      command: 'cmd',
-      args: ['/d', '/s', '/c', 'start', '""', `"${target}"`],
-      options: {
-        ...options,
-        windowsVerbatimArguments: true,
-      },
+      command: 'explorer.exe',
+      args: [target],
+      options,
     };
   }
 
@@ -136,12 +141,9 @@ const buildOpenExternalInvocation = (
 
   if (platform === 'win32') {
     return {
-      command: 'cmd',
-      args: ['/d', '/s', '/c', 'start', '""', `"${target}"`],
-      options: {
-        ...options,
-        windowsVerbatimArguments: true,
-      },
+      command: 'explorer.exe',
+      args: [normalizeHttpTarget(target)],
+      options,
     };
   }
 
@@ -287,17 +289,7 @@ const createOpenExternal = (platform: NodeJS.Platform = process.platform) => {
   };
 };
 
-export const resolveRepoRootFromModuleUrl = (
-  moduleUrl: string,
-  override = process.env.IRONQR_REPO_ROOT,
-): string => {
-  if (override) {
-    return path.resolve(override);
-  }
-
-  const sourceDirectory = fileURLToPath(new URL('.', moduleUrl));
-  return path.resolve(sourceDirectory, '../../..');
-};
+export { resolveRepoRootFromModuleUrl } from './repo-root.js';
 
 const main = async (): Promise<void> => {
   const argv = process.argv.slice(2);

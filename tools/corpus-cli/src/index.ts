@@ -17,6 +17,7 @@ export {
   writeStagedRemoteAsset,
 } from './import/remote.js';
 export { readCorpusManifest, writeCorpusManifest } from './manifest.js';
+export { resolveRepoRootFromModuleUrl } from './repo-root.js';
 export { reviewStagedAssets } from './review.js';
 export { scanLocalImageFile } from './scan.js';
 export type * from './schema.js';

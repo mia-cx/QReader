@@ -1,6 +1,7 @@
 import { execFileSync, spawn } from 'node:child_process';
 import path from 'node:path';
 import readline from 'node:readline/promises';
+import { fileURLToPath } from 'node:url';
 import { writeRealWorldBenchmarkCorpus } from './export/benchmark.js';
 import { importLocalAssets } from './import/local.js';
 import {
@@ -129,6 +130,34 @@ export const buildOpenTargetInvocation = (
   };
 };
 
+export const resolveRepoRootFromModuleUrl = (
+  moduleUrl: string,
+  override = process.env.IRONQR_REPO_ROOT,
+): string => {
+  if (override) {
+    return path.resolve(override);
+  }
+
+  const sourceDirectory = fileURLToPath(new URL('.', moduleUrl));
+  return path.resolve(sourceDirectory, '../../..');
+};
+
+export const buildFilteredCliCommand = (command: string, args: readonly string[] = []): string => {
+  const renderedArgs = args.map((value) => JSON.stringify(value)).join(' ');
+  return renderedArgs.length > 0
+    ? `bun --filter ironqr-corpus-cli run cli -- ${command} ${renderedArgs}`
+    : `bun --filter ironqr-corpus-cli run cli -- ${command}`;
+};
+
+export const getUsageText = (): string => {
+  return `Usage:
+  bun --filter ironqr-corpus-cli run cli -- import-local --label qr-positive|non-qr-negative [--review pending|approved|rejected] <files...>
+  bun --filter ironqr-corpus-cli run cli -- scrape-remote --label qr-positive|non-qr-negative [--limit 25] <seed-urls...>
+  bun --filter ironqr-corpus-cli run cli -- review-staged <stage-dir> [--reviewer github-login]
+  bun --filter ironqr-corpus-cli run cli -- import-staged <stage-dir> [--label qr-positive|non-qr-negative] [--review pending|approved|rejected]
+  bun --filter ironqr-corpus-cli run cli -- export-benchmark`;
+};
+
 const openTarget = (target: string): Promise<void> => {
   return new Promise((resolve, reject) => {
     const { command, args, options } = buildOpenTargetInvocation(target);
@@ -144,7 +173,7 @@ const openTarget = (target: string): Promise<void> => {
 
 const main = async (): Promise<void> => {
   const [command, ...rest] = getPositionals();
-  const repoRoot = process.cwd();
+  const repoRoot = resolveRepoRootFromModuleUrl(import.meta.url);
 
   if (command === 'import-local') {
     const reviewStatus = parseReviewStatus(getOption('review'));
@@ -183,7 +212,7 @@ const main = async (): Promise<void> => {
 
     console.log(`Staged ${result.assets.length} images in ${result.stageDir}`);
     console.log(`Review them, then import with:`);
-    console.log(`  bun run corpus/cli.ts import-staged ${result.stageDir}`);
+    console.log(`  ${buildFilteredCliCommand('import-staged', [result.stageDir])}`);
     return;
   }
 
@@ -193,7 +222,7 @@ const main = async (): Promise<void> => {
 
     if (!stageDir) {
       throw new Error(
-        'Expected a stage directory: bun run corpus/cli.ts review-staged corpus/staging/<run-id>',
+        `Expected a stage directory: ${buildFilteredCliCommand('review-staged', ['corpus/staging/<run-id>'])}`,
       );
     }
 
@@ -224,7 +253,7 @@ const main = async (): Promise<void> => {
         `Review complete: ${summary.approved} approved, ${summary.rejected} rejected, ${summary.skipped} skipped${summary.quitEarly ? ' (quit early)' : ''}`,
       );
       console.log(`Next step:`);
-      console.log(`  bun run corpus/cli.ts import-staged ${resolvedStageDir}`);
+      console.log(`  ${buildFilteredCliCommand('import-staged', [resolvedStageDir])}`);
     } finally {
       rl.close();
     }
@@ -244,7 +273,7 @@ const main = async (): Promise<void> => {
 
     if (!stageDir) {
       throw new Error(
-        'Expected a stage directory: bun run corpus/cli.ts import-staged corpus/staging/<run-id>',
+        `Expected a stage directory: ${buildFilteredCliCommand('import-staged', ['corpus/staging/<run-id>'])}`,
       );
     }
 
@@ -274,12 +303,7 @@ const main = async (): Promise<void> => {
     return;
   }
 
-  console.log(`Usage:
-  bun run corpus/cli.ts import-local --label qr-positive|non-qr-negative [--review pending|approved|rejected] <files...>
-  bun run corpus/cli.ts scrape-remote --label qr-positive|non-qr-negative [--limit 25] <seed-urls...>
-  bun run corpus/cli.ts review-staged <stage-dir> [--reviewer github-login]
-  bun run corpus/cli.ts import-staged <stage-dir> [--label qr-positive|non-qr-negative] [--review pending|approved|rejected]
-  bun run corpus/cli.ts export-benchmark`);
+  console.log(getUsageText());
 };
 
 if (import.meta.main) {

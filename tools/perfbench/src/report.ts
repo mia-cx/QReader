@@ -81,7 +81,7 @@ export const printRealWorldSummary = (result: RealWorldBenchmarkResult): void =>
   const report = buildRealWorldReport(result);
   console.log('── Real-World Benchmark ───────────────────────────────');
   if (report.positiveCount === 0 && report.negativeCount === 0) {
-    console.log('  (corpus empty — run corpus:import-local or corpus:scrape to seed it)');
+    console.log('  (corpus empty — run bun run corpus:import or bun run corpus:scrape to seed it)');
   } else {
     console.log(
       `  Positives : ${report.decodeSuccesses}/${report.positiveCount} passed  (decodeRate ${pct(report.decodeRate)})`,

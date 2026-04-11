@@ -3,6 +3,7 @@ import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { writeRealWorldBenchmarkCorpus } from 'ironqr-corpus-cli';
+import { resolveRepoRootFromModuleUrl } from '../../src/cli.js';
 import { runRealWorldBenchmark, scoreRealWorldPositive } from '../../src/real-world-runner.js';
 
 describe('real-world benchmark runner', () => {
@@ -43,5 +44,13 @@ describe('real-world benchmark runner', () => {
 
     expect(outputPath).toBe(path.join(repoRoot, 'corpus', 'data', 'benchmark-real-world.json'));
     expect(JSON.parse(await readFile(outputPath, 'utf8'))).toEqual(corpus);
+  });
+
+  it('derives the repo root from the perfbench CLI module location', () => {
+    expect(
+      resolveRepoRootFromModuleUrl(
+        'file:///Users/mia/Development/mia-cx/QReader/tools/perfbench/src/cli.ts',
+      ),
+    ).toBe('/Users/mia/Development/mia-cx/QReader');
   });
 });

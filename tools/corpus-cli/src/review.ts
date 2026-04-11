@@ -1,0 +1,160 @@
+import {
+  resolveStagedAssetPath,
+  type StagedRemoteAsset,
+  type StageReviewStatus,
+  updateStagedRemoteAsset,
+} from './import/remote.js';
+import type { AutoScan, GroundTruth } from './schema.js';
+import { assertHttpUrl } from './url.js';
+
+interface ScanAssetResult {
+  readonly attempted: boolean;
+  readonly succeeded: boolean;
+  readonly results: ReadonlyArray<{
+    readonly text: string;
+    readonly kind?: string | undefined;
+  }>;
+}
+
+interface ReviewStagedAssetsOptions {
+  readonly stageDir: string;
+  readonly reviewer: string;
+  readonly assets: AsyncIterable<StagedRemoteAsset>;
+  readonly promptConfirmedLicense: (
+    asset: StagedRemoteAsset,
+    suggestedLicense?: string,
+  ) => Promise<string | undefined>;
+  readonly promptAllowInCorpus: (asset: StagedRemoteAsset) => Promise<boolean>;
+  readonly promptQrCount: (asset: StagedRemoteAsset, initialValue?: number) => Promise<number>;
+  readonly promptGroundTruth: (
+    asset: StagedRemoteAsset,
+    qrCount: number,
+    scanResult: ScanAssetResult,
+  ) => Promise<GroundTruth>;
+  readonly scanAsset: (asset: StagedRemoteAsset) => Promise<ScanAssetResult>;
+  readonly openSourcePage: (url: string) => Promise<void>;
+  readonly log: (line: string) => void;
+}
+
+interface ReviewSummary {
+  readonly approved: number;
+  readonly rejected: number;
+  readonly skipped: number;
+  readonly quitEarly: boolean;
+}
+
+const logAssetMetadata = (
+  asset: StagedRemoteAsset,
+  imagePath: string,
+  log: (line: string) => void,
+): void => {
+  log(`Reviewing ${asset.id}`);
+  log(`Source: ${asset.sourcePageUrl}`);
+  log(`Image URL: ${asset.imageUrl}`);
+  log(`Local: ${imagePath}`);
+  log(`Size: ${asset.width}×${asset.height}`);
+  if (asset.pageTitle) {
+    log(`Page title: ${asset.pageTitle}`);
+  }
+  if (asset.bestEffortLicense) {
+    log(`License hint: ${asset.bestEffortLicense}`);
+  }
+  if (asset.licenseEvidenceText) {
+    log(`License evidence: ${asset.licenseEvidenceText}`);
+  }
+  if (asset.altText) {
+    log(`Alt text: ${asset.altText}`);
+  }
+};
+
+const groundTruthMatchesScan = (groundTruth: GroundTruth, scanResult: ScanAssetResult): boolean => {
+  if (!scanResult.succeeded) return false;
+  if (groundTruth.codes.length !== scanResult.results.length) return false;
+
+  return groundTruth.codes.every((code, index) => code.text === scanResult.results[index]?.text);
+};
+
+export const reviewStagedAssets = async (
+  options: ReviewStagedAssetsOptions,
+): Promise<ReviewSummary> => {
+  let approved = 0;
+  let rejected = 0;
+  const skipped = 0;
+
+  for await (const asset of options.assets) {
+    if (asset.importedAssetId || asset.review.status !== 'pending') {
+      continue;
+    }
+
+    const imagePath = resolveStagedAssetPath(options.stageDir, asset.id, asset.imageFileName);
+    assertHttpUrl(asset.sourcePageUrl, 'source page URL');
+
+    logAssetMetadata(asset, imagePath, options.log);
+    await options.openSourcePage(asset.sourcePageUrl);
+
+    const confirmedLicense = await options.promptConfirmedLicense(
+      asset,
+      asset.confirmedLicense ?? asset.bestEffortLicense,
+    );
+    const allowInCorpus = await options.promptAllowInCorpus(asset);
+
+    if (!allowInCorpus) {
+      await updateStagedRemoteAsset(options.stageDir, {
+        ...asset,
+        review: {
+          status: 'rejected',
+          reviewer: options.reviewer,
+          reviewedAt: new Date().toISOString(),
+        },
+        ...(confirmedLicense ? { confirmedLicense } : {}),
+      });
+      rejected += 1;
+      continue;
+    }
+
+    const scanResult = await options.scanAsset(asset);
+    const qrCount = await options.promptQrCount(
+      asset,
+      scanResult.succeeded ? scanResult.results.length : 0,
+    );
+
+    const groundTruth =
+      qrCount === 0
+        ? ({ qrCount: 0, codes: [] } as GroundTruth)
+        : await options.promptGroundTruth(asset, qrCount, scanResult);
+
+    const autoScan = toAutoScan(scanResult, groundTruthMatchesScan(groundTruth, scanResult));
+
+    await updateStagedRemoteAsset(options.stageDir, {
+      ...asset,
+      suggestedLabel: qrCount === 0 ? 'non-qr-negative' : 'qr-positive',
+      review: {
+        status: 'approved',
+        reviewer: options.reviewer,
+        reviewedAt: new Date().toISOString(),
+      },
+      ...(confirmedLicense || asset.bestEffortLicense
+        ? { confirmedLicense: confirmedLicense || asset.bestEffortLicense }
+        : {}),
+      groundTruth,
+      autoScan,
+    });
+    approved += 1;
+  }
+
+  return { approved, rejected, skipped, quitEarly: false };
+};
+
+const toAutoScan = (result: ScanAssetResult, acceptedAsTruth?: boolean): AutoScan => {
+  return {
+    attempted: result.attempted,
+    succeeded: result.succeeded,
+    results: result.results.map((entry) => ({
+      text: entry.text,
+      ...(entry.kind ? { kind: entry.kind } : {}),
+    })),
+    ...(acceptedAsTruth !== undefined ? { acceptedAsTruth } : {}),
+  };
+};
+
+export type { ReviewStagedAssetsOptions, ReviewSummary, ScanAssetResult, StageReviewStatus };

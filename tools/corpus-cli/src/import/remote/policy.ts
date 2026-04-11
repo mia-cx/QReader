@@ -1,0 +1,56 @@
+const ALLOWED_SOURCE_HOSTS = new Set([
+  'pixabay.com',
+  'commons.wikimedia.org',
+  'publicdomainpictures.net',
+  'pexels.com',
+  'pdimagearchive.org',
+  'unsplash.com',
+]);
+
+const PAGE_LINK_PATTERNS: Record<string, readonly RegExp[]> = {
+  'pixabay.com': [/^\/(photos|illustrations|vectors)\//],
+  'commons.wikimedia.org': [/^\/wiki\/File:/],
+  'publicdomainpictures.net': [/^\/view-image\.php/, /^\/picture\//],
+  'pexels.com': [/^\/photo\//],
+  'pdimagearchive.org': [],
+  'unsplash.com': [/^\/photos\//],
+};
+
+const ALLOWED_IMAGE_HOSTS: Record<string, readonly string[]> = {
+  'pixabay.com': ['pixabay.com', 'cdn.pixabay.com'],
+  'commons.wikimedia.org': ['commons.wikimedia.org', 'upload.wikimedia.org'],
+  'publicdomainpictures.net': ['publicdomainpictures.net'],
+  'pexels.com': ['pexels.com', 'images.pexels.com'],
+  'pdimagearchive.org': ['pdimagearchive.org'],
+  'unsplash.com': ['unsplash.com', 'images.unsplash.com'],
+};
+
+export const normalizeHost = (value: string): string => {
+  return value.replace(/^www\./, '').toLowerCase();
+};
+
+export const assertAllowedSeed = (seedUrl: string): URL => {
+  const url = new URL(seedUrl);
+  const host = normalizeHost(url.hostname);
+
+  if (!ALLOWED_SOURCE_HOSTS.has(host)) {
+    throw new Error(`Seed host is not in the allowlist: ${host}`);
+  }
+
+  return url;
+};
+
+export const getPageLinkPatterns = (host: string): readonly RegExp[] => {
+  return PAGE_LINK_PATTERNS[host] ?? [];
+};
+
+export const isAllowedImageHost = (sourceHost: string, imageUrl: string): boolean => {
+  try {
+    const imageHost = normalizeHost(new URL(imageUrl).hostname);
+    const allowed = ALLOWED_IMAGE_HOSTS[sourceHost];
+    if (!allowed) return imageHost === sourceHost;
+    return allowed.some((host) => normalizeHost(host) === imageHost);
+  } catch {
+    return false;
+  }
+};

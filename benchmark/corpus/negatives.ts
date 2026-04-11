@@ -12,7 +12,7 @@ import type { Ecl, NegativeEntry } from './index.js';
 // ─── Deterministic PRNG ───────────────────────────────────────────────────────
 
 /** Mulberry32 — fast, seedable 32-bit PRNG. */
-function makePrng(seed: number): () => number {
+const makePrng = (seed: number): (() => number) => {
   let state = seed;
   return () => {
     state = (state + 0x6d2b79f5) >>> 0;
@@ -21,7 +21,7 @@ function makePrng(seed: number): () => number {
     z ^= z + Math.imul(z ^ (z >>> 7), z | 61);
     return ((z ^ (z >>> 14)) >>> 0) / 4294967296;
   };
-}
+};
 
 // ─── Format-info corruption helper ───────────────────────────────────────────
 
@@ -33,7 +33,7 @@ function makePrng(seed: number): () => number {
  * codewords each occupy a Hamming ball of radius 3.  We search the space for
  * the first candidate (starting from 0x0000) that lies outside all balls.
  */
-function findCorruptFormatInfo(): number {
+const findCorruptFormatInfo = (): number => {
   const valid = new Set<number>();
   for (const ecl of ['L', 'M', 'Q', 'H'] as const) {
     for (let mask = 0; mask < 8; mask += 1) {
@@ -43,7 +43,7 @@ function findCorruptFormatInfo(): number {
 
   const validArray = Array.from(valid);
 
-  function minDistance(candidate: number): number {
+  const minDistance = (candidate: number): number => {
     let min = 15;
     for (const v of validArray) {
       let dist = 0;
@@ -55,7 +55,7 @@ function findCorruptFormatInfo(): number {
       if (dist < min) min = dist;
     }
     return min;
-  }
+  };
 
   for (let candidate = 0x0000; candidate <= 0x7fff; candidate += 1) {
     if (minDistance(candidate) > 3) return candidate;
@@ -63,30 +63,30 @@ function findCorruptFormatInfo(): number {
 
   // Unreachable: there are thousands of valid candidates in a 32768-word space.
   throw new Error('Could not find corrupt format-info value.');
-}
+};
 
 const CORRUPT_FORMAT_INFO = findCorruptFormatInfo();
 
-function setModule(matrix: boolean[][], row: number, col: number, value: boolean): void {
+const setModule = (matrix: boolean[][], row: number, col: number, value: boolean): void => {
   const currentRow = matrix[row];
   if (currentRow !== undefined && currentRow[col] !== undefined) {
     currentRow[col] = value;
   }
-}
+};
 
 // ─── Negative corpus generators ───────────────────────────────────────────────
 
 /** Fills a grid with random boolean values. */
-function randomNoiseGrid(size: number, seed: number): boolean[][] {
+const randomNoiseGrid = (size: number, seed: number): boolean[][] => {
   const rng = makePrng(seed);
   return Array.from({ length: size }, () => Array.from({ length: size }, () => rng() < 0.5));
-}
+};
 
 /**
  * Builds a QR-shaped grid (correct function modules) but randomises every data
  * module so RS decoding will almost certainly fail.
  */
-function scrambledDataGrid(version: number, ecl: Ecl, seed: number): boolean[][] {
+const scrambledDataGrid = (version: number, ecl: Ecl, seed: number): boolean[][] => {
   const grid = buildQrGrid(version, ecl, 0, 'HI');
   const size = grid.length;
   const reserved = buildFunctionModuleMask(size, version);
@@ -99,13 +99,13 @@ function scrambledDataGrid(version: number, ecl: Ecl, seed: number): boolean[][]
   }
 
   return grid;
-}
+};
 
 /**
  * Builds a QR-shaped grid with valid structure but a corrupt format-info field
  * in BOTH copies, causing decodeFormatInfo to throw.
  */
-function nearMissFormatGrid(version: number, ecl: Ecl): boolean[][] {
+const nearMissFormatGrid = (version: number, ecl: Ecl): boolean[][] => {
   const grid = buildQrGrid(version, ecl, 0, 'HI');
   const size = grid.length;
   const corrupt = CORRUPT_FORMAT_INFO;
@@ -121,11 +121,11 @@ function nearMissFormatGrid(version: number, ecl: Ecl): boolean[][] {
   }
 
   return grid;
-}
+};
 
 // ─── Public factory ───────────────────────────────────────────────────────────
 
-export function generateNegativeCorpus(): NegativeEntry[] {
+export const generateNegativeCorpus = (): NegativeEntry[] => {
   const entries: NegativeEntry[] = [];
 
   // Random noise grids at QR-like sizes (v1=21, v7=45, v20=97, v40=177)
@@ -173,4 +173,4 @@ export function generateNegativeCorpus(): NegativeEntry[] {
   }
 
   return entries;
-}
+};

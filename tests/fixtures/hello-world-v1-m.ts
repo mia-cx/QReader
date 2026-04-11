@@ -7,7 +7,7 @@ import {
   ScannerError,
 } from '../../src/qr/index.js';
 
-function buildGrid(): boolean[][] {
+const buildGrid = (): boolean[][] => {
   const size = 21;
   const version = 1;
   const matrix = Array.from({ length: size }, () => Array.from({ length: size }, () => false));
@@ -96,6 +96,6 @@ function buildGrid(): boolean[][] {
   }
 
   return matrix;
-}
+};
 
 export const helloWorldV1MGrid = buildGrid();

@@ -28,7 +28,7 @@ export interface RealWorldReport {
   readonly falsePositiveIds: readonly string[];
 }
 
-export function buildReport(result: BenchmarkResult): BenchmarkReport {
+export const buildReport = (result: BenchmarkResult): BenchmarkReport => {
   return {
     timestamp: new Date().toISOString(),
     positiveCount: result.positives.length,
@@ -41,9 +41,9 @@ export function buildReport(result: BenchmarkResult): BenchmarkReport {
     failedIds: result.positives.filter((r) => !r.passed).map((r) => r.entry.id),
     falsePositiveIds: result.negatives.filter((r) => r.falsePositive).map((r) => r.entry.id),
   };
-}
+};
 
-export function buildRealWorldReport(result: RealWorldBenchmarkResult): RealWorldReport {
+export const buildRealWorldReport = (result: RealWorldBenchmarkResult): RealWorldReport => {
   return {
     positiveCount: result.positives.length,
     negativeCount: result.negatives.length,
@@ -55,9 +55,9 @@ export function buildRealWorldReport(result: RealWorldBenchmarkResult): RealWorl
     failedIds: result.positives.filter((r) => !r.passed).map((r) => r.entry.id),
     falsePositiveIds: result.negatives.filter((r) => r.falsePositive).map((r) => r.entry.id),
   };
-}
+};
 
-export function printSummary(report: BenchmarkReport): void {
+export const printSummary = (report: BenchmarkReport): void => {
   const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
   console.log('\n── Synthetic Benchmark ────────────────────────────────');
   console.log(
@@ -74,9 +74,9 @@ export function printSummary(report: BenchmarkReport): void {
   }
   console.log(`  Output    : ${OUTPUT_FILE}`);
   console.log('───────────────────────────────────────────────────────\n');
-}
+};
 
-export function printRealWorldSummary(result: RealWorldBenchmarkResult): void {
+export const printRealWorldSummary = (result: RealWorldBenchmarkResult): void => {
   const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
   const report = buildRealWorldReport(result);
   console.log('── Real-World Benchmark ───────────────────────────────');
@@ -97,15 +97,15 @@ export function printRealWorldSummary(result: RealWorldBenchmarkResult): void {
     }
   }
   console.log('───────────────────────────────────────────────────────\n');
-}
+};
 
-export async function writeReport(
+export const writeReport = async (
   report: BenchmarkReport,
   realWorld?: RealWorldBenchmarkResult,
-): Promise<void> {
+): Promise<void> => {
   const payload = {
     ...report,
     ...(realWorld ? { realWorld: buildRealWorldReport(realWorld) } : {}),
   };
   await Bun.write(OUTPUT_FILE, `${JSON.stringify(payload, null, 2)}\n`);
-}
+};

@@ -29,9 +29,9 @@ type Ecl = 'L' | 'M' | 'Q' | 'H';
  * Minimal ImageData stand-in for Node environments where the browser API is absent.
  * Matches the shape that toGrayscale, sampleGrid etc. expect.
  */
-function makeImageData(width: number, height: number, pixels: Uint8ClampedArray): ImageData {
+const makeImageData = (width: number, height: number, pixels: Uint8ClampedArray): ImageData => {
   return { width, height, data: pixels, colorSpace: 'srgb' } as unknown as ImageData;
-}
+};
 
 // ─── Grid-to-pixels renderer ──────────────────────────────────────────────
 
@@ -41,7 +41,7 @@ const PIXELS_PER_MODULE = 10;
  * Renders a boolean QR grid to an RGBA pixel buffer at 10 px/module.
  * Dark = black (0,0,0,255), light = white (255,255,255,255).
  */
-function gridToImageData(grid: boolean[][]): ImageData {
+const gridToImageData = (grid: boolean[][]): ImageData => {
   const modules = grid.length;
   const imageSize = modules * PIXELS_PER_MODULE;
   const pixels = new Uint8ClampedArray(imageSize * imageSize * 4);
@@ -64,20 +64,20 @@ function gridToImageData(grid: boolean[][]): ImageData {
   }
 
   return makeImageData(imageSize, imageSize, pixels);
-}
+};
 
 // ─── Version 1 grid builder (mirrored from decode-grid.test.ts) ───────────
 
 const V1_SIZE = 21;
 const V1_VERSION = 1;
 
-function appendBits(bits: number[], value: number, length: number): void {
+const appendBits = (bits: number[], value: number, length: number): void => {
   for (let bit = length - 1; bit >= 0; bit -= 1) {
     bits.push((value >> bit) & 1);
   }
-}
+};
 
-function bytesFromBits(bits: readonly number[]): number[] {
+const bytesFromBits = (bits: readonly number[]): number[] => {
   const bytes: number[] = [];
   for (let i = 0; i < bits.length; i += 8) {
     let value = 0;
@@ -87,9 +87,9 @@ function bytesFromBits(bits: readonly number[]): number[] {
     bytes.push(value);
   }
   return bytes;
-}
+};
 
-function finalizeV1DataCodewords(payloadBits: readonly number[], ecl: Ecl): number[] {
+const finalizeV1DataCodewords = (payloadBits: readonly number[], ecl: Ecl): number[] => {
   const { dataCodewords: totalDataCodewords } = getVersionBlockInfo(V1_VERSION, ecl);
   const totalBits = totalDataCodewords * 8;
   const bits = Array.from(payloadBits);
@@ -101,13 +101,13 @@ function finalizeV1DataCodewords(payloadBits: readonly number[], ecl: Ecl): numb
     padByte = padByte === 0xec ? 0x11 : 0xec;
   }
   return bytesFromBits(bits);
-}
+};
 
-function buildVersion1Grid(
+const buildVersion1Grid = (
   dataCodewords: readonly number[],
   ecl: Ecl,
   maskPattern: number,
-): boolean[][] {
+): boolean[][] => {
   const { ecCodewordsPerBlock } = getVersionBlockInfo(V1_VERSION, ecl);
   const matrix = Array.from({ length: V1_SIZE }, () =>
     Array.from({ length: V1_SIZE }, () => false),
@@ -175,7 +175,7 @@ function buildVersion1Grid(
   }
 
   return matrix;
-}
+};
 
 // ─── Tests ────────────────────────────────────────────────────────────────
 

@@ -12,11 +12,11 @@ import {
   writeCorpusManifest,
 } from '../../corpus/manifest.js';
 
-async function createRepoRoot(): Promise<string> {
+const createRepoRoot = async (): Promise<string> => {
   return mkdtemp(path.join(tmpdir(), 'qreader-corpus-'));
-}
+};
 
-async function createPngBytes(red: number, green: number, blue: number): Promise<Uint8Array> {
+const createPngBytes = async (red: number, green: number, blue: number): Promise<Uint8Array> => {
   const buffer = await sharp({
     create: {
       width: 2,
@@ -29,12 +29,12 @@ async function createPngBytes(red: number, green: number, blue: number): Promise
     .toBuffer();
 
   return new Uint8Array(buffer);
-}
+};
 
-async function writeFixture(filePath: string, bytes: Uint8Array): Promise<void> {
+const writeFixture = async (filePath: string, bytes: Uint8Array): Promise<void> => {
   await mkdir(path.dirname(filePath), { recursive: true });
   await writeFile(filePath, bytes);
-}
+};
 
 describe('real-world corpus toolkit', () => {
   it('imports local assets into a manifest-driven corpus with provenance and review fields', async () => {

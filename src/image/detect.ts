@@ -13,7 +13,7 @@ export interface FinderCandidate {
  * @param runs - Five consecutive run lengths.
  * @returns True when the runs match the expected ratio within 50% tolerance.
  */
-function isFinderRatio(runs: readonly [number, number, number, number, number]): boolean {
+const isFinderRatio = (runs: readonly [number, number, number, number, number]): boolean => {
   const total = runs[0] + runs[1] + runs[2] + runs[3] + runs[4];
   if (total < 7) return false;
 
@@ -27,7 +27,7 @@ function isFinderRatio(runs: readonly [number, number, number, number, number]):
     Math.abs(runs[3] - module) < maxVariance &&
     Math.abs(runs[4] - module) < maxVariance
   );
-}
+};
 
 /**
  * Result of a successful vertical cross-check of a finder candidate.
@@ -53,14 +53,14 @@ interface VerticalCheckResult {
  * @param hModuleSize - Horizontal module size estimate.
  * @returns Refined center and module size, or null if not a finder.
  */
-function crossCheckVertical(
+const crossCheckVertical = (
   binary: Uint8Array,
   width: number,
   height: number,
   cx: number,
   cy: number,
   hModuleSize: number,
-): VerticalCheckResult | null {
+): VerticalCheckResult | null => {
   const col = Math.round(cx);
   const row = Math.round(cy);
 
@@ -133,7 +133,7 @@ function crossCheckVertical(
   const refinedCy = (topOfSpan + bottomOfSpan) / 2;
 
   return { moduleSize: vModuleSize, cy: refinedCy };
-}
+};
 
 /**
  * Scans a binarized image for QR finder pattern candidates.
@@ -146,11 +146,11 @@ function crossCheckVertical(
  * @param height - Image height in pixels.
  * @returns Up to 3 finder pattern candidates sorted by confidence.
  */
-export function detectFinderPatterns(
+export const detectFinderPatterns = (
   binary: Uint8Array,
   width: number,
   height: number,
-): FinderCandidate[] {
+): FinderCandidate[] => {
   const candidates: FinderCandidate[] = [];
 
   for (let row = 0; row < height; row += 1) {
@@ -230,4 +230,4 @@ export function detectFinderPatterns(
   }
 
   return result;
-}
+};

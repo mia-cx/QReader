@@ -34,7 +34,7 @@ interface ReviewSummary {
   readonly quitEarly: boolean;
 }
 
-function toAutoScan(result: ScanAssetResult, acceptedAsTruth?: boolean): AutoScan {
+const toAutoScan = (result: ScanAssetResult, acceptedAsTruth?: boolean): AutoScan => {
   return {
     attempted: result.attempted,
     succeeded: result.succeeded,
@@ -44,12 +44,12 @@ function toAutoScan(result: ScanAssetResult, acceptedAsTruth?: boolean): AutoSca
     })),
     ...(acceptedAsTruth !== undefined ? { acceptedAsTruth } : {}),
   };
-}
+};
 
-async function promptQrCount(
+const promptQrCount = async (
   prompt: (message: string) => Promise<string>,
   log: (line: string) => void,
-): Promise<number> {
+): Promise<number> => {
   while (true) {
     const value = (await prompt('How many QR codes are present in this image?')).trim();
     if (value === '') {
@@ -64,12 +64,12 @@ async function promptQrCount(
 
     log(`Invalid QR count: ${value}`);
   }
-}
+};
 
-async function promptManualGroundTruth(
+const promptManualGroundTruth = async (
   prompt: (message: string) => Promise<string>,
   qrCount: number,
-): Promise<GroundTruth> {
+): Promise<GroundTruth> => {
   const codes: Array<GroundTruth['codes'][number]> = [];
 
   for (let index = 0; index < qrCount; index += 1) {
@@ -86,11 +86,11 @@ async function promptManualGroundTruth(
   }
 
   return { qrCount, codes };
-}
+};
 
-export async function reviewStagedAssets(
+export const reviewStagedAssets = async (
   options: ReviewStagedAssetsOptions,
-): Promise<ReviewSummary> {
+): Promise<ReviewSummary> => {
   const assets = await readStagedRemoteAssets(options.stageDir);
   let approved = 0;
   let rejected = 0;
@@ -212,6 +212,6 @@ export async function reviewStagedAssets(
   }
 
   return { approved, rejected, skipped, quitEarly: false };
-}
+};
 
 export type { ReviewStagedAssetsOptions, ReviewSummary, ScanAssetResult, StageReviewStatus };

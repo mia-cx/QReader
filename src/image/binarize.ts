@@ -6,7 +6,7 @@
  * @param data - Source `ImageData`.
  * @returns Grayscale luma values, one byte per pixel.
  */
-export function toGrayscale(data: ImageData): Uint8Array {
+export const toGrayscale = (data: ImageData): Uint8Array => {
   const { width, height, data: pixels } = data;
   const luma = new Uint8Array(width * height);
 
@@ -19,7 +19,7 @@ export function toGrayscale(data: ImageData): Uint8Array {
   }
 
   return luma;
-}
+};
 
 /**
  * Binarizes a grayscale image using Otsu's global thresholding method.
@@ -29,7 +29,7 @@ export function toGrayscale(data: ImageData): Uint8Array {
  * @param height - Image height in pixels.
  * @returns Binary array: 0 = dark (QR module), 255 = light (background).
  */
-export function otsuBinarize(luma: Uint8Array, width: number, height: number): Uint8Array {
+export const otsuBinarize = (luma: Uint8Array, width: number, height: number): Uint8Array => {
   const total = width * height;
   const histogram: number[] = new Array<number>(256).fill(0);
 
@@ -74,4 +74,4 @@ export function otsuBinarize(luma: Uint8Array, width: number, height: number): U
   }
 
   return binary;
-}
+};

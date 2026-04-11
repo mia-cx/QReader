@@ -41,7 +41,7 @@ const SECOND_PAGE_HTML = `
   </html>
 `;
 
-async function createPngBytes(red: number, green: number, blue: number): Promise<Uint8Array> {
+const createPngBytes = async (red: number, green: number, blue: number): Promise<Uint8Array> => {
   const buffer = await sharp({
     create: {
       width: 2,
@@ -54,15 +54,15 @@ async function createPngBytes(red: number, green: number, blue: number): Promise
     .toBuffer();
 
   return new Uint8Array(buffer);
-}
+};
 
-async function createRepoRoot(): Promise<string> {
+const createRepoRoot = async (): Promise<string> => {
   const repoRoot = await mkdtemp(path.join(tmpdir(), 'qreader-corpus-remote-'));
   await mkdir(path.join(repoRoot, 'corpus'), { recursive: true });
   return repoRoot;
-}
+};
 
-function buildMockFetch(): (input: string | URL) => Promise<Response> {
+const buildMockFetch = (): ((input: string | URL) => Promise<Response>) => {
   return async (input) => {
     const url = typeof input === 'string' ? input : input.toString();
 
@@ -101,7 +101,7 @@ function buildMockFetch(): (input: string | URL) => Promise<Response> {
 
     return new Response('not found', { status: 404 });
   };
-}
+};
 
 describe('remote corpus import', () => {
   it('stages remote assets in per-image folders, then imports them with remote provenance', async () => {

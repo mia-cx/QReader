@@ -28,15 +28,15 @@ export interface RealWorldBenchmarkResult {
   readonly falsePositiveRate: number;
 }
 
-function expectedTextFor(entry: RealWorldBenchmarkEntry): string | null {
+const expectedTextFor = (entry: RealWorldBenchmarkEntry): string | null => {
   const first = entry.groundTruth?.codes[0];
   return first ? first.text : null;
-}
+};
 
-export function scoreRealWorldPositive(
+export const scoreRealWorldPositive = (
   entry: RealWorldBenchmarkEntry,
   scan: { readonly succeeded: boolean; readonly results: readonly { readonly text: string }[] },
-): RealWorldPositiveResult {
+): RealWorldPositiveResult => {
   const expected = expectedTextFor(entry);
   const decodedText = scan.results[0]?.text ?? null;
   const passed = expected === null ? scan.succeeded : scan.succeeded && decodedText === expected;
@@ -48,12 +48,12 @@ export function scoreRealWorldPositive(
     expectedText: expected,
     error: passed ? null : scan.succeeded ? 'text mismatch' : 'decode failed',
   };
-}
+};
 
-async function runRealWorldPositive(
+const runRealWorldPositive = async (
   repoRoot: string,
   entry: RealWorldBenchmarkEntry,
-): Promise<RealWorldPositiveResult> {
+): Promise<RealWorldPositiveResult> => {
   try {
     const scan = await scanLocalImageFile(path.join(repoRoot, entry.assetPath));
     return scoreRealWorldPositive(entry, scan);
@@ -66,12 +66,12 @@ async function runRealWorldPositive(
       error: error instanceof Error ? error.message : String(error),
     };
   }
-}
+};
 
-async function runRealWorldNegative(
+const runRealWorldNegative = async (
   repoRoot: string,
   entry: RealWorldBenchmarkEntry,
-): Promise<RealWorldNegativeResult> {
+): Promise<RealWorldNegativeResult> => {
   try {
     const scan = await scanLocalImageFile(path.join(repoRoot, entry.assetPath));
     if (scan.succeeded && scan.results.length > 0) {
@@ -81,9 +81,11 @@ async function runRealWorldNegative(
   } catch {
     return { entry, falsePositive: false, decodedText: null };
   }
-}
+};
 
-export async function runRealWorldBenchmark(repoRoot: string): Promise<RealWorldBenchmarkResult> {
+export const runRealWorldBenchmark = async (
+  repoRoot: string,
+): Promise<RealWorldBenchmarkResult> => {
   const corpus = await buildRealWorldBenchmarkCorpus(repoRoot);
 
   const positiveResults = await Promise.all(
@@ -106,4 +108,4 @@ export async function runRealWorldBenchmark(repoRoot: string): Promise<RealWorld
     decodeRate: positiveResults.length > 0 ? decodeSuccesses / positiveResults.length : 1,
     falsePositiveRate: negativeResults.length > 0 ? falsePositives / negativeResults.length : 0,
   };
-}
+};

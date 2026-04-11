@@ -9,7 +9,7 @@ const LOG_TABLE = new Uint8Array(256);
  *
  * @returns Nothing.
  */
-function initializeTables(): void {
+const initializeTables = (): void => {
   if (tablesInitialized) {
     return;
   }
@@ -32,7 +32,7 @@ function initializeTables(): void {
   }
 
   tablesInitialized = true;
-}
+};
 
 /**
  * Adds two GF(256) elements.
@@ -41,9 +41,9 @@ function initializeTables(): void {
  * @param right - Second field element.
  * @returns The field sum.
  */
-function gfAdd(left: number, right: number): number {
+const gfAdd = (left: number, right: number): number => {
   return left ^ right;
-}
+};
 
 /**
  * Multiplies two GF(256) elements.
@@ -52,14 +52,14 @@ function gfAdd(left: number, right: number): number {
  * @param right - Second field element.
  * @returns The field product.
  */
-function gfMultiply(left: number, right: number): number {
+const gfMultiply = (left: number, right: number): number => {
   if (left === 0 || right === 0) {
     return 0;
   }
 
   initializeTables();
   return EXP_TABLE[(LOG_TABLE[left] ?? 0) + (LOG_TABLE[right] ?? 0)] ?? 0;
-}
+};
 
 /**
  * Computes the multiplicative inverse of a GF(256) element.
@@ -68,14 +68,14 @@ function gfMultiply(left: number, right: number): number {
  * @returns The multiplicative inverse.
  * @throws {Error} Thrown when attempting to invert zero.
  */
-function gfInverse(value: number): number {
+const gfInverse = (value: number): number => {
   if (value === 0) {
     throw new Error('Cannot invert zero in GF(256).');
   }
 
   initializeTables();
   return EXP_TABLE[255 - (LOG_TABLE[value] ?? 0)] ?? 0;
-}
+};
 
 /**
  * Multiplies two polynomials whose coefficients live in GF(256).
@@ -84,7 +84,7 @@ function gfInverse(value: number): number {
  * @param right - Right polynomial coefficients.
  * @returns The product polynomial coefficients.
  */
-function polynomialMultiply(left: readonly number[], right: readonly number[]): number[] {
+const polynomialMultiply = (left: readonly number[], right: readonly number[]): number[] => {
   const result = new Array<number>(left.length + right.length - 1).fill(0);
 
   for (let leftIndex = 0; leftIndex < left.length; leftIndex += 1) {
@@ -96,7 +96,7 @@ function polynomialMultiply(left: readonly number[], right: readonly number[]): 
   }
 
   return result;
-}
+};
 
 /**
  * Builds the Reed-Solomon generator polynomial for the requested ECC width.
@@ -104,7 +104,7 @@ function polynomialMultiply(left: readonly number[], right: readonly number[]): 
  * @param ecCodewords - Number of error-correction codewords to generate.
  * @returns Generator polynomial coefficients.
  */
-function buildGeneratorPolynomial(ecCodewords: number): number[] {
+const buildGeneratorPolynomial = (ecCodewords: number): number[] => {
   initializeTables();
 
   let generator = [1];
@@ -113,7 +113,7 @@ function buildGeneratorPolynomial(ecCodewords: number): number[] {
   }
 
   return generator;
-}
+};
 
 /**
  * Represents a Reed-Solomon decode failure before it is translated into the public scanner contract.
@@ -336,11 +336,11 @@ class GenericGFPoly {
  * @param ecCodewords - Number of ECC codewords in the block.
  * @returns A tuple of [error locator, error evaluator].
  */
-function runEuclideanAlgorithm(
+const runEuclideanAlgorithm = (
   a: GenericGFPoly,
   b: GenericGFPoly,
   ecCodewords: number,
-): readonly [GenericGFPoly, GenericGFPoly] {
+): readonly [GenericGFPoly, GenericGFPoly] => {
   if (a.degree < b.degree) {
     [a, b] = [b, a];
   }
@@ -384,7 +384,7 @@ function runEuclideanAlgorithm(
 
   const inverse = gfInverse(sigmaTildeAtZero);
   return [t.multiplyScalar(inverse), r.multiplyScalar(inverse)];
-}
+};
 
 /**
  * Finds every error location encoded by an error locator polynomial.
@@ -392,7 +392,7 @@ function runEuclideanAlgorithm(
  * @param errorLocator - Error locator polynomial.
  * @returns Field elements representing each error location.
  */
-function findErrorLocations(errorLocator: GenericGFPoly): number[] {
+const findErrorLocations = (errorLocator: GenericGFPoly): number[] => {
   const numberOfErrors = errorLocator.degree;
   if (numberOfErrors === 0) {
     return [];
@@ -410,7 +410,7 @@ function findErrorLocations(errorLocator: GenericGFPoly): number[] {
   }
 
   return result;
-}
+};
 
 /**
  * Computes the magnitude of each located Reed-Solomon error.
@@ -419,10 +419,10 @@ function findErrorLocations(errorLocator: GenericGFPoly): number[] {
  * @param errorLocations - Field elements representing each error location.
  * @returns Error magnitudes aligned to the provided locations.
  */
-function findErrorMagnitudes(
+const findErrorMagnitudes = (
   errorEvaluator: GenericGFPoly,
   errorLocations: readonly number[],
-): number[] {
+): number[] => {
   const result: number[] = [];
 
   for (let i = 0; i < errorLocations.length; i += 1) {
@@ -443,7 +443,7 @@ function findErrorMagnitudes(
   }
 
   return result;
-}
+};
 
 /**
  * Generates Reed-Solomon ECC bytes for a data block.
@@ -452,7 +452,7 @@ function findErrorMagnitudes(
  * @param ecCodewords - Number of ECC codewords to generate.
  * @returns The ECC bytes for the provided data block.
  */
-export function rsEncode(data: readonly number[], ecCodewords: number): Uint8Array {
+export const rsEncode = (data: readonly number[], ecCodewords: number): Uint8Array => {
   const generator = buildGeneratorPolynomial(ecCodewords);
   const buffer = new Uint8Array(data.length + ecCodewords);
   buffer.set(data);
@@ -471,7 +471,7 @@ export function rsEncode(data: readonly number[], ecCodewords: number): Uint8Arr
   }
 
   return buffer.slice(data.length);
-}
+};
 
 /**
  * Corrects a full Reed-Solomon block containing data and ECC codewords.
@@ -480,7 +480,7 @@ export function rsEncode(data: readonly number[], ecCodewords: number): Uint8Arr
  * @param ecCodewords - Number of ECC codewords at the tail of the block.
  * @returns The corrected block codewords.
  */
-export function correctRsBlock(received: readonly number[], ecCodewords: number): Uint8Array {
+export const correctRsBlock = (received: readonly number[], ecCodewords: number): Uint8Array => {
   initializeTables();
 
   try {
@@ -533,7 +533,7 @@ export function correctRsBlock(received: readonly number[], ecCodewords: number)
 
     throw new ReedSolomonError('Unknown Reed-Solomon decoding failure.');
   }
-}
+};
 
 /**
  * Verifies that the supplied ECC bytes match the given data bytes.
@@ -542,7 +542,7 @@ export function correctRsBlock(received: readonly number[], ecCodewords: number)
  * @param ecc - Expected ECC codewords.
  * @returns True when the ECC bytes match the encoded remainder.
  */
-export function verifyRsBlock(data: readonly number[], ecc: readonly number[]): boolean {
+export const verifyRsBlock = (data: readonly number[], ecc: readonly number[]): boolean => {
   const expected = rsEncode(data, ecc.length);
 
   if (expected.length !== ecc.length) {
@@ -556,4 +556,4 @@ export function verifyRsBlock(data: readonly number[], ecc: readonly number[]): 
   }
 
   return true;
-}
+};

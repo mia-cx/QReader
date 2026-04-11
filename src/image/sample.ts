@@ -12,12 +12,12 @@ import type { GridResolution } from './geometry.js';
  * @param binary - Binarized pixel array (0 = dark, 255 = light).
  * @returns A 2D boolean grid where `true` = dark module.
  */
-export function sampleGrid(
+export const sampleGrid = (
   width: number,
   height: number,
   resolution: GridResolution,
   binary: Uint8Array,
-): boolean[][] {
+): boolean[][] => {
   const { size, samplePoint } = resolution;
 
   return Array.from({ length: size }, (_, row) =>
@@ -28,4 +28,4 @@ export function sampleGrid(
       return (binary[py * width + px] ?? 255) === 0;
     }),
   );
-}
+};

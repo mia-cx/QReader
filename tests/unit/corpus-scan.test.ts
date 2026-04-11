@@ -5,7 +5,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { scanLocalImageFile } from '../../corpus/scan.js';
 
-async function createBlankPng(filePath: string): Promise<void> {
+const createBlankPng = async (filePath: string): Promise<void> => {
   await sharp({
     create: {
       width: 64,
@@ -16,7 +16,7 @@ async function createBlankPng(filePath: string): Promise<void> {
   })
     .png()
     .toFile(filePath);
-}
+};
 
 describe('corpus reviewer scan assist', () => {
   it('returns no results for a blank image', async () => {

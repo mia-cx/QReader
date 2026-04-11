@@ -12,13 +12,13 @@ import { reviewStagedAssets } from './review.js';
 import { scanLocalImageFile } from './scan.js';
 import type { CorpusAssetLabel, ReviewStatus } from './schema.js';
 
-function getOption(name: string): string | undefined {
+const getOption = (name: string): string | undefined => {
   const index = process.argv.indexOf(`--${name}`);
   if (index < 0) return undefined;
   return process.argv[index + 1];
-}
+};
 
-function getPositionals(): string[] {
+const getPositionals = (): string[] => {
   const values: string[] = [];
 
   for (let index = 2; index < process.argv.length; index += 1) {
@@ -32,35 +32,35 @@ function getPositionals(): string[] {
   }
 
   return values;
-}
+};
 
-function parseLabel(value: string | undefined): CorpusAssetLabel {
+const parseLabel = (value: string | undefined): CorpusAssetLabel => {
   if (value === 'qr-positive' || value === 'non-qr-negative') {
     return value;
   }
 
   throw new Error('Expected --label qr-positive|non-qr-negative');
-}
+};
 
-function parseReviewStatus(value: string | undefined): ReviewStatus | undefined {
+const parseReviewStatus = (value: string | undefined): ReviewStatus | undefined => {
   if (!value) return undefined;
   if (value === 'pending' || value === 'approved' || value === 'rejected') {
     return value;
   }
 
   throw new Error('Expected --review pending|approved|rejected');
-}
+};
 
-function parseLimit(value: string | undefined): number | undefined {
+const parseLimit = (value: string | undefined): number | undefined => {
   if (!value) return undefined;
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) {
     throw new Error('Expected --limit to be a positive number');
   }
   return parsed;
-}
+};
 
-function detectGithubLogin(): string | undefined {
+const detectGithubLogin = (): string | undefined => {
   try {
     const login = execFileSync('gh', ['api', 'user', '--jq', '.login'], {
       encoding: 'utf8',
@@ -70,12 +70,12 @@ function detectGithubLogin(): string | undefined {
   } catch {
     return undefined;
   }
-}
+};
 
-async function resolveReviewer(
+const resolveReviewer = async (
   prompt: (message: string) => Promise<string>,
   explicitReviewer?: string,
-): Promise<string> {
+): Promise<string> => {
   if (explicitReviewer) {
     return explicitReviewer;
   }
@@ -85,7 +85,7 @@ async function resolveReviewer(
     detected ? `Reviewer GitHub username [default: ${detected}]:` : 'Reviewer GitHub username:',
   );
   return answer || detected || '';
-}
+};
 
 type OpenTargetInvocation = {
   readonly command: string;
@@ -97,10 +97,10 @@ type OpenTargetInvocation = {
   };
 };
 
-export function buildOpenTargetInvocation(
+export const buildOpenTargetInvocation = (
   target: string,
   platform: NodeJS.Platform = process.platform,
-): OpenTargetInvocation {
+): OpenTargetInvocation => {
   const options = { stdio: 'ignore' as const, detached: true as const };
 
   if (platform === 'darwin') {
@@ -127,9 +127,9 @@ export function buildOpenTargetInvocation(
     args: [target],
     options,
   };
-}
+};
 
-function openTarget(target: string): Promise<void> {
+const openTarget = (target: string): Promise<void> => {
   return new Promise((resolve, reject) => {
     const { command, args, options } = buildOpenTargetInvocation(target);
     const child = spawn(command, args, options);
@@ -140,9 +140,9 @@ function openTarget(target: string): Promise<void> {
       resolve();
     });
   });
-}
+};
 
-async function main(): Promise<void> {
+const main = async (): Promise<void> => {
   const [command, ...rest] = getPositionals();
   const repoRoot = process.cwd();
 
@@ -280,7 +280,7 @@ async function main(): Promise<void> {
   bun run corpus/cli.ts review-staged <stage-dir> [--reviewer github-login]
   bun run corpus/cli.ts import-staged <stage-dir> [--label qr-positive|non-qr-negative] [--review pending|approved|rejected]
   bun run corpus/cli.ts export-benchmark`);
-}
+};
 
 if (import.meta.main) {
   void main().catch((error) => {

@@ -18,13 +18,13 @@ import type { Ecl, PositiveEntry } from './index.js';
 
 // ─── Bit helpers ──────────────────────────────────────────────────────────────
 
-function appendBits(bits: number[], value: number, length: number): void {
+const appendBits = (bits: number[], value: number, length: number): void => {
   for (let bit = length - 1; bit >= 0; bit -= 1) {
     bits.push((value >> bit) & 1);
   }
-}
+};
 
-function bytesFromBits(bits: readonly number[]): number[] {
+const bytesFromBits = (bits: readonly number[]): number[] => {
   const bytes: number[] = [];
   for (let index = 0; index < bits.length; index += 8) {
     let value = 0;
@@ -34,7 +34,7 @@ function bytesFromBits(bits: readonly number[]): number[] {
     bytes.push(value);
   }
   return bytes;
-}
+};
 
 // ─── Payload encoding ─────────────────────────────────────────────────────────
 
@@ -42,7 +42,7 @@ function bytesFromBits(bits: readonly number[]): number[] {
  * Encodes a short message in byte mode and pads to the full data capacity for
  * the given version/ECL combination.
  */
-function encodeByteMode(message: string, version: number, totalDataCodewords: number): number[] {
+const encodeByteMode = (message: string, version: number, totalDataCodewords: number): number[] => {
   const messageBytes = new TextEncoder().encode(message);
   const countBits = version <= 9 ? 8 : 16;
   const bits: number[] = [];
@@ -64,7 +64,7 @@ function encodeByteMode(message: string, version: number, totalDataCodewords: nu
   }
 
   return bytesFromBits(bits);
-}
+};
 
 // ─── RS block interleaving ────────────────────────────────────────────────────
 
@@ -72,10 +72,10 @@ function encodeByteMode(message: string, version: number, totalDataCodewords: nu
  * Splits data codewords into RS blocks, encodes each block, then interleaves
  * data and EC codewords in the order required by ISO 18004.
  */
-function interleaveBlocks(
+const interleaveBlocks = (
   dataCodewords: readonly number[],
   blockInfo: ReturnType<typeof getVersionBlockInfo>,
-): number[] {
+): number[] => {
   // Build block data arrays following group structure
   const blocks: Array<{ data: number[]; ecc: number[] }> = [];
   for (const group of blockInfo.groups) {
@@ -115,18 +115,18 @@ function interleaveBlocks(
   }
 
   return raw;
-}
+};
 
 // ─── Matrix helpers ───────────────────────────────────────────────────────────
 
-function setModule(matrix: boolean[][], row: number, col: number, value: boolean): void {
+const setModule = (matrix: boolean[][], row: number, col: number, value: boolean): void => {
   const currentRow = matrix[row];
   if (currentRow !== undefined && currentRow[col] !== undefined) {
     currentRow[col] = value;
   }
-}
+};
 
-function drawFinder(matrix: boolean[][], top: number, left: number): void {
+const drawFinder = (matrix: boolean[][], top: number, left: number): void => {
   for (let row = 0; row < 7; row += 1) {
     for (let col = 0; col < 7; col += 1) {
       const dark =
@@ -138,16 +138,16 @@ function drawFinder(matrix: boolean[][], top: number, left: number): void {
       setModule(matrix, top + row, left + col, dark);
     }
   }
-}
+};
 
-function drawAlignment(matrix: boolean[][], centerRow: number, centerCol: number): void {
+const drawAlignment = (matrix: boolean[][], centerRow: number, centerCol: number): void => {
   for (let row = -2; row <= 2; row += 1) {
     for (let col = -2; col <= 2; col += 1) {
       const dark = Math.abs(row) === 2 || Math.abs(col) === 2 || (row === 0 && col === 0);
       setModule(matrix, centerRow + row, centerCol + col, dark);
     }
   }
-}
+};
 
 // ─── Full grid builder ────────────────────────────────────────────────────────
 
@@ -156,12 +156,12 @@ function drawAlignment(matrix: boolean[][], centerRow: number, centerCol: number
  * pattern, and short byte-mode message.  All function modules, format info,
  * version info, and interleaved RS codewords are placed per ISO 18004.
  */
-export function buildQrGrid(
+export const buildQrGrid = (
   version: number,
   ecl: Ecl,
   maskPattern: number,
   message: string,
-): boolean[][] {
+): boolean[][] => {
   const size = 17 + version * 4;
   const blockInfo = getVersionBlockInfo(version, ecl as QrErrorCorrectionLevel);
   const dataCodewords = encodeByteMode(message, version, blockInfo.dataCodewords);
@@ -249,7 +249,7 @@ export function buildQrGrid(
   }
 
   return matrix;
-}
+};
 
 // ─── RS error-injection helper ────────────────────────────────────────────────
 
@@ -258,12 +258,12 @@ export function buildQrGrid(
  * `errorCount` data codewords flipped.  For v1-M: t = floor(10/2) = 5;
  * injecting 4 errors stays within the correction capacity.
  */
-export function injectRsErrors(
+export const injectRsErrors = (
   grid: boolean[][],
   version: number,
   _ecl: Ecl,
   errorCount: number,
-): boolean[][] {
+): boolean[][] => {
   const size = grid.length;
   const reserved = buildFunctionModuleMask(size, version);
   const positions = buildDataModulePositions(size, reserved);
@@ -279,14 +279,14 @@ export function injectRsErrors(
   }
 
   return corrupted;
-}
+};
 
 // ─── Corpus generation ────────────────────────────────────────────────────────
 
 const ECL_LEVELS: readonly Ecl[] = ['L', 'M', 'Q', 'H'];
 const BENCHMARK_MESSAGE = 'HI';
 
-export function generatePositiveCorpus(): PositiveEntry[] {
+export const generatePositiveCorpus = (): PositiveEntry[] => {
   const entries: PositiveEntry[] = [];
 
   // v1: all 4 EC levels × all 8 masks
@@ -333,4 +333,4 @@ export function generatePositiveCorpus(): PositiveEntry[] {
   });
 
   return entries;
-}
+};

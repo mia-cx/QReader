@@ -15,7 +15,7 @@ import {
 
 const ALPHANUMERIC_CHARSET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:';
 
-function bytesFromBits(bits: readonly number[]): Uint8Array {
+const bytesFromBits = (bits: readonly number[]): Uint8Array => {
   if (bits.length % 8 !== 0) {
     throw new Error('Fixture bits must be byte aligned.');
   }
@@ -30,19 +30,19 @@ function bytesFromBits(bits: readonly number[]): Uint8Array {
   }
 
   return bytes;
-}
+};
 
-function appendBits(bits: number[], value: number, length: number): void {
+const appendBits = (bits: number[], value: number, length: number): void => {
   for (let bit = length - 1; bit >= 0; bit -= 1) {
     bits.push((value >> bit) & 1);
   }
-}
+};
 
-function encodeAlphanumericData(
+const encodeAlphanumericData = (
   message: string,
   version: number,
   totalDataCodewords: number,
-): number[] {
+): number[] => {
   const countBits = version <= 9 ? 9 : version <= 26 ? 11 : 13;
   const values = new Map(
     ALPHANUMERIC_CHARSET.split('').map((char, index) => [char, index] as const),
@@ -85,12 +85,12 @@ function encodeAlphanumericData(
   }
 
   return Array.from(bytesFromBits(bits));
-}
+};
 
-function splitInterleavedBlocks(
+const splitInterleavedBlocks = (
   dataCodewords: readonly number[],
   blockInfo: ReturnType<typeof getVersionBlockInfo>,
-) {
+) => {
   const blocks: Array<{ data: number[]; ecc: number[] }> = [];
 
   for (const group of blockInfo.groups) {
@@ -118,9 +118,9 @@ function splitInterleavedBlocks(
   }
 
   return blocks;
-}
+};
 
-function buildRawCodewords(version: number, message: string): number[] {
+const buildRawCodewords = (version: number, message: string): number[] => {
   const blockInfo = getVersionBlockInfo(version, 'M');
   const dataCodewords = encodeAlphanumericData(message, version, blockInfo.dataCodewords);
   const blocks = splitInterleavedBlocks(dataCodewords, blockInfo);
@@ -146,9 +146,9 @@ function buildRawCodewords(version: number, message: string): number[] {
   }
 
   return rawCodewords;
-}
+};
 
-function buildMatrix(version: number, message: string): boolean[][] {
+const buildMatrix = (version: number, message: string): boolean[][] => {
   const size = 17 + version * 4;
   const matrix = Array.from({ length: size }, () => Array.from({ length: size }, () => false));
   const reserved = buildFunctionModuleMask(size, version);
@@ -268,6 +268,6 @@ function buildMatrix(version: number, message: string): boolean[][] {
   }
 
   return matrix;
-}
+};
 
 export const helloWorldV7MGrid = buildMatrix(7, 'HELLO WORLD');

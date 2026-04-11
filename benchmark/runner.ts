@@ -31,7 +31,7 @@ export interface BenchmarkResult {
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
 
-async function runPositive(entry: PositiveEntry): Promise<PositiveResult> {
+const runPositive = async (entry: PositiveEntry): Promise<PositiveResult> => {
   try {
     const result = await decodeGrid({ grid: entry.grid });
     const decodedText = result.payload.text;
@@ -45,18 +45,18 @@ async function runPositive(entry: PositiveEntry): Promise<PositiveResult> {
       error: error instanceof Error ? error.message : String(error),
     };
   }
-}
+};
 
-async function runNegative(entry: NegativeEntry): Promise<NegativeResult> {
+const runNegative = async (entry: NegativeEntry): Promise<NegativeResult> => {
   try {
     const result = await decodeGrid({ grid: entry.grid });
     return { entry, falsePositive: true, decodedText: result.payload.text };
   } catch {
     return { entry, falsePositive: false, decodedText: null };
   }
-}
+};
 
-export async function runBenchmark(): Promise<BenchmarkResult> {
+export const runBenchmark = async (): Promise<BenchmarkResult> => {
   const corpus = {
     positives: generatePositiveCorpus(),
     negatives: generateNegativeCorpus(),
@@ -82,4 +82,4 @@ export async function runBenchmark(): Promise<BenchmarkResult> {
     decodeRate: positiveResults.length > 0 ? decodeSuccesses / positiveResults.length : 0,
     falsePositiveRate: negativeResults.length > 0 ? falsePositives / negativeResults.length : 0,
   };
-}
+};

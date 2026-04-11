@@ -24,9 +24,9 @@ export { ScannerNotImplementedError } from './runtime/index.js';
  * funnels through a single entry point — a future home for tracing, service
  * injection, or custom runtime configuration.
  */
-function runEffect<A, E>(effect: Effect.Effect<A, E>): Promise<A> {
+const runEffect = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => {
   return Effect.runPromise(effect);
-}
+};
 
 /**
  * Decodes a pre-sampled logical QR grid into a structured scan result.
@@ -34,9 +34,9 @@ function runEffect<A, E>(effect: Effect.Effect<A, E>): Promise<A> {
  * @param input - Square boolean grid and decode options.
  * @returns A promise for the decoded payload and QR metadata.
  */
-export async function decodeGrid(input: DecodeGridInput): Promise<DecodeGridResult> {
+export const decodeGrid = async (input: DecodeGridInput): Promise<DecodeGridResult> => {
   return runEffect(decodeGridLogical({ grid: input.grid }));
-}
+};
 
 /**
  * Scans a single still image or video frame for QR symbols.
@@ -45,14 +45,14 @@ export async function decodeGrid(input: DecodeGridInput): Promise<DecodeGridResu
  * @param _options - Scan behavior overrides.
  * @returns A promise containing every decoded symbol found in the frame.
  */
-export async function scanFrame(
+export const scanFrame = async (
   input: ScanFrameInput,
   // Options are accepted for API stability but not yet forwarded to the pipeline.
   // Behavioral overrides (signal, maxCandidates, debug) will be wired in a future slice.
   _options?: ScanOptions,
-): Promise<readonly ScanResult[]> {
+): Promise<readonly ScanResult[]> => {
   return runEffect(scanFrameEffect(input));
-}
+};
 
 /**
  * Scans an image-like source by delegating to the frame scanner.
@@ -61,12 +61,12 @@ export async function scanFrame(
  * @param options - Scan behavior overrides.
  * @returns A promise containing every decoded symbol found in the image.
  */
-export async function scanImage(
+export const scanImage = async (
   input: ScanImageInput,
   options?: ScanOptions,
-): Promise<readonly ScanResult[]> {
+): Promise<readonly ScanResult[]> => {
   return scanFrame(input, options);
-}
+};
 
 /**
  * Continuously scans frames from a media stream or video element.
@@ -76,9 +76,9 @@ export async function scanImage(
  * @returns A promise that resolves with the collected scan results for the session.
  * @throws {ScannerNotImplementedError} Thrown until stream scanning is implemented.
  */
-export async function scanStream(
+export const scanStream = async (
   _input: ScanStreamInput,
   _options?: ScanStreamOptions,
-): Promise<readonly ScanResult[]> {
+): Promise<readonly ScanResult[]> => {
   return notImplemented('scanStream');
-}
+};

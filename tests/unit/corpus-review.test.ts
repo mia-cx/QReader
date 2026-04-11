@@ -24,7 +24,7 @@ const FIRST_PAGE_HTML = `
   </html>
 `;
 
-async function createPngBytes(red: number, green: number, blue: number): Promise<Uint8Array> {
+const createPngBytes = async (red: number, green: number, blue: number): Promise<Uint8Array> => {
   const buffer = await sharp({
     create: {
       width: 2,
@@ -37,15 +37,15 @@ async function createPngBytes(red: number, green: number, blue: number): Promise
     .toBuffer();
 
   return new Uint8Array(buffer);
-}
+};
 
-async function createRepoRoot(): Promise<string> {
+const createRepoRoot = async (): Promise<string> => {
   const repoRoot = await mkdtemp(path.join(tmpdir(), 'qreader-corpus-review-'));
   await mkdir(path.join(repoRoot, 'corpus'), { recursive: true });
   return repoRoot;
-}
+};
 
-function buildMockFetch(): (input: string | URL) => Promise<Response> {
+const buildMockFetch = (): ((input: string | URL) => Promise<Response>) => {
   return async (input) => {
     const url = typeof input === 'string' ? input : input.toString();
     const firstBytes = await createPngBytes(255, 255, 255);
@@ -70,7 +70,7 @@ function buildMockFetch(): (input: string | URL) => Promise<Response> {
 
     return new Response('not found', { status: 404 });
   };
-}
+};
 
 describe('interactive staged review', () => {
   it('approves a staged asset, confirms license, asks qr count first, then accepts auto-scan truth', async () => {

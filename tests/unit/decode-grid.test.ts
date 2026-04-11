@@ -35,13 +35,13 @@ const VALID_V7_M_RS_BLOCK = [
 
 // ─── Bit helpers ───────────────────────────────────────────────────────────
 
-function appendBits(bits: number[], value: number, length: number): void {
+const appendBits = (bits: number[], value: number, length: number): void => {
   for (let bit = length - 1; bit >= 0; bit -= 1) {
     bits.push((value >> bit) & 1);
   }
-}
+};
 
-function bytesFromBits(bits: readonly number[]): number[] {
+const bytesFromBits = (bits: readonly number[]): number[] => {
   const bytes: number[] = [];
   for (let index = 0; index < bits.length; index += 8) {
     let value = 0;
@@ -51,7 +51,7 @@ function bytesFromBits(bits: readonly number[]): number[] {
     bytes.push(value);
   }
   return bytes;
-}
+};
 
 // ─── Version 1 grid builder ────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ function bytesFromBits(bits: readonly number[]): number[] {
  * Pads a raw payload bit stream to the full data codeword capacity for the
  * given version-1 EC level, then returns the resulting data codeword bytes.
  */
-function finalizeVersion1DataCodewords(payloadBits: readonly number[], ecl: Ecl): number[] {
+const finalizeVersion1DataCodewords = (payloadBits: readonly number[], ecl: Ecl): number[] => {
   const { dataCodewords: totalDataCodewords } = getVersionBlockInfo(V1_VERSION, ecl);
   const totalBits = totalDataCodewords * 8;
   const bits = Array.from(payloadBits);
@@ -76,18 +76,18 @@ function finalizeVersion1DataCodewords(payloadBits: readonly number[], ecl: Ecl)
   }
 
   return bytesFromBits(bits);
-}
+};
 
 /**
  * Builds a fully-compliant version-1 QR matrix from data codewords using the
  * specified EC level and mask pattern.  All function-module patterns, format
  * info, dark module, and data placement follow ISO 18004.
  */
-function buildVersion1Grid(
+const buildVersion1Grid = (
   dataCodewords: readonly number[],
   ecl: Ecl,
   maskPattern: number,
-): boolean[][] {
+): boolean[][] => {
   const { ecCodewordsPerBlock } = getVersionBlockInfo(V1_VERSION, ecl);
   const matrix = Array.from({ length: V1_SIZE }, () =>
     Array.from({ length: V1_SIZE }, () => false),
@@ -162,11 +162,11 @@ function buildVersion1Grid(
   }
 
   return matrix;
-}
+};
 
 // ─── Mode-specific payload helpers ────────────────────────────────────────
 
-function alphanumericBits(message: string): number[] {
+const alphanumericBits = (message: string): number[] => {
   const CHARSET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:';
   const values = new Map(CHARSET.split('').map((c, i) => [c, i] as const));
   const bits: number[] = [];
@@ -183,15 +183,15 @@ function alphanumericBits(message: string): number[] {
     }
   }
   return bits;
-}
+};
 
-function buildFnc1SecondPositionGrid(): boolean[][] {
+const buildFnc1SecondPositionGrid = (): boolean[][] => {
   const bits: number[] = [];
   appendBits(bits, 0b1001, 4); // FNC1 second
   appendBits(bits, 0x41, 8); // application indicator
   bits.push(...alphanumericBits('AB'));
   return buildVersion1Grid(finalizeVersion1DataCodewords(bits, 'M'), 'M', 0);
-}
+};
 
 // ─── Tests ─────────────────────────────────────────────────────────────────
 

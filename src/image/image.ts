@@ -9,7 +9,7 @@ import type { BrowserImageSource } from '../contracts/scan.js';
  * @param source - Browser image source to convert.
  * @returns An `ImageData` containing the full pixel content of the source.
  */
-export async function toImageData(source: BrowserImageSource): Promise<ImageData> {
+export const toImageData = async (source: BrowserImageSource): Promise<ImageData> => {
   if (source instanceof ImageData) {
     return source;
   }
@@ -26,4 +26,4 @@ export async function toImageData(source: BrowserImageSource): Promise<ImageData
   bitmap.close();
 
   return ctx.getImageData(0, 0, canvas.width, canvas.height);
-}
+};

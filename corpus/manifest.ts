@@ -3,37 +3,39 @@ import path from 'node:path';
 import * as S from 'effect/Schema';
 import { type CorpusManifest, CorpusManifestSchema } from './schema.js';
 
-function decodeManifest(value: unknown): CorpusManifest {
+const decodeManifest = (value: unknown): CorpusManifest => {
   return S.decodeUnknownSync(CorpusManifestSchema)(value);
-}
+};
 
-function provenanceSortKey(record: CorpusManifest['assets'][number]['provenance'][number]): string {
+const provenanceSortKey = (
+  record: CorpusManifest['assets'][number]['provenance'][number],
+): string => {
   return record.kind === 'local'
     ? `local:${record.originalPath}`
     : `remote:${record.sourcePageUrl}:${record.imageUrl}`;
-}
+};
 
-export function getCorpusDataRoot(repoRoot: string): string {
+export const getCorpusDataRoot = (repoRoot: string): string => {
   return path.join(repoRoot, 'corpus', 'data');
-}
+};
 
-export function getCorpusAssetsRoot(repoRoot: string): string {
+export const getCorpusAssetsRoot = (repoRoot: string): string => {
   return path.join(getCorpusDataRoot(repoRoot), 'assets');
-}
+};
 
-export function getCorpusManifestPath(repoRoot: string): string {
+export const getCorpusManifestPath = (repoRoot: string): string => {
   return path.join(getCorpusDataRoot(repoRoot), 'manifest.json');
-}
+};
 
-export function getBenchmarkExportPath(repoRoot: string): string {
+export const getBenchmarkExportPath = (repoRoot: string): string => {
   return path.join(getCorpusDataRoot(repoRoot), 'benchmark-real-world.json');
-}
+};
 
-export async function ensureCorpusLayout(repoRoot: string): Promise<void> {
+export const ensureCorpusLayout = async (repoRoot: string): Promise<void> => {
   await mkdir(getCorpusAssetsRoot(repoRoot), { recursive: true });
-}
+};
 
-export async function readCorpusManifest(repoRoot: string): Promise<CorpusManifest> {
+export const readCorpusManifest = async (repoRoot: string): Promise<CorpusManifest> => {
   const manifestPath = getCorpusManifestPath(repoRoot);
 
   try {
@@ -46,12 +48,12 @@ export async function readCorpusManifest(repoRoot: string): Promise<CorpusManife
 
     throw error;
   }
-}
+};
 
-export async function writeCorpusManifest(
+export const writeCorpusManifest = async (
   repoRoot: string,
   manifest: CorpusManifest,
-): Promise<void> {
+): Promise<void> => {
   await ensureCorpusLayout(repoRoot);
 
   const sorted: CorpusManifest = {
@@ -67,8 +69,8 @@ export async function writeCorpusManifest(
   };
 
   await writeFile(getCorpusManifestPath(repoRoot), `${JSON.stringify(sorted, null, 2)}\n`, 'utf8');
-}
+};
 
-export function toRepoRelativePath(repoRoot: string, targetPath: string): string {
+export const toRepoRelativePath = (repoRoot: string, targetPath: string): string => {
   return path.relative(repoRoot, targetPath).split(path.sep).join('/');
-}
+};

@@ -19,7 +19,7 @@ import { sampleGrid } from './sample.js';
  * @param input - Any supported browser image source.
  * @returns An Effect yielding one `ScanResult` per decoded QR symbol found.
  */
-export function scanFrame(input: BrowserImageSource) {
+export const scanFrame = (input: BrowserImageSource) => {
   return Effect.gen(function* () {
     const imageData = yield* Effect.tryPromise(() => toImageData(input));
     const { width, height } = imageData;
@@ -56,4 +56,4 @@ export function scanFrame(input: BrowserImageSource) {
 
     return [result];
   });
-}
+};

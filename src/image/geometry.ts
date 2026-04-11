@@ -26,17 +26,17 @@ export interface GridResolution {
 /**
  * Returns the Euclidean distance between two points.
  */
-function dist(a: Point, b: Point): number {
+const dist = (a: Point, b: Point): number => {
   return Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2);
-}
+};
 
 /**
  * Returns the cross product of vectors (b-a) and (c-a).
  * Positive = c is below/right of the directed line a→b (image coords, y increases downward).
  */
-function cross(a: Point, b: Point, c: Point): number {
+const cross = (a: Point, b: Point, c: Point): number => {
   return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
-}
+};
 
 /**
  * Resolves a QR grid layout from three finder pattern candidates.
@@ -48,7 +48,7 @@ function cross(a: Point, b: Point, c: Point): number {
  * @param finders - Exactly 3 finder pattern candidates.
  * @returns Grid resolution for sampling, or null if geometry cannot be resolved.
  */
-export function resolveGrid(finders: readonly FinderCandidate[]): GridResolution | null {
+export const resolveGrid = (finders: readonly FinderCandidate[]): GridResolution | null => {
   if (finders.length < 3) return null;
 
   const [fa, fb, fc] = finders as [FinderCandidate, FinderCandidate, FinderCandidate];
@@ -160,4 +160,4 @@ export function resolveGrid(finders: readonly FinderCandidate[]): GridResolution
   };
 
   return { version, size, corners, bounds, samplePoint };
-}
+};

@@ -8,9 +8,9 @@ import {
 } from '../manifest.js';
 import type { RealWorldBenchmarkCorpus, RealWorldBenchmarkEntry } from '../schema.js';
 
-export async function buildRealWorldBenchmarkCorpus(
+export const buildRealWorldBenchmarkCorpus = async (
   repoRoot: string,
-): Promise<RealWorldBenchmarkCorpus> {
+): Promise<RealWorldBenchmarkCorpus> => {
   const manifest = await readCorpusManifest(repoRoot);
 
   const entries: RealWorldBenchmarkEntry[] = manifest.assets
@@ -41,19 +41,19 @@ export async function buildRealWorldBenchmarkCorpus(
     positives: entries.filter((entry) => entry.label === 'qr-positive'),
     negatives: entries.filter((entry) => entry.label === 'non-qr-negative'),
   };
-}
+};
 
 export interface WriteRealWorldBenchmarkCorpusResult {
   readonly outputPath: string;
   readonly corpus: RealWorldBenchmarkCorpus;
 }
 
-export async function writeRealWorldBenchmarkCorpus(
+export const writeRealWorldBenchmarkCorpus = async (
   repoRoot: string,
-): Promise<WriteRealWorldBenchmarkCorpusResult> {
+): Promise<WriteRealWorldBenchmarkCorpusResult> => {
   const corpus = await buildRealWorldBenchmarkCorpus(repoRoot);
   await ensureCorpusLayout(repoRoot);
   const outputPath = getBenchmarkExportPath(repoRoot);
   await writeFile(outputPath, `${JSON.stringify(corpus, null, 2)}\n`, 'utf8');
   return { outputPath, corpus };
-}
+};

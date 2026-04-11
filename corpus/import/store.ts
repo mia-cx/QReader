@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
+import { Effect } from 'effect';
 import sharp from 'sharp';
 import { ensureCorpusLayout, getCorpusAssetsRoot } from '../manifest.js';
 import type {
@@ -32,23 +33,23 @@ const EXTENSIONS_BY_MEDIA_TYPE: Record<string, string> = {
 
 const NORMALIZED_IMAGE_MEDIA_TYPE = 'image/webp';
 
-export function hashSha256(buffer: Uint8Array): string {
+export const hashSha256 = (buffer: Uint8Array): string => {
   return createHash('sha256').update(buffer).digest('hex');
-}
+};
 
-function buildAssetId(sha256: string): string {
+const buildAssetId = (sha256: string): string => {
   return `asset-${sha256.slice(0, 16)}`;
-}
+};
 
-function normalizeMediaType(mediaType: string): string {
+const normalizeMediaType = (mediaType: string): string => {
   return mediaType.split(';', 1)[0]?.trim().toLowerCase() ?? mediaType.toLowerCase();
-}
+};
 
-export function mediaTypeFromExtension(extension: string): string | undefined {
+export const mediaTypeFromExtension = (extension: string): string | undefined => {
   return MEDIA_TYPES_BY_EXTENSION[extension.toLowerCase()];
-}
+};
 
-export function extensionFromMediaType(mediaType: string, fallbackPath: string): string {
+export const extensionFromMediaType = (mediaType: string, fallbackPath: string): string => {
   const normalizedMediaType = normalizeMediaType(mediaType);
   const fromMediaType = EXTENSIONS_BY_MEDIA_TYPE[normalizedMediaType];
   if (fromMediaType) return fromMediaType;
@@ -59,9 +60,9 @@ export function extensionFromMediaType(mediaType: string, fallbackPath: string):
   }
 
   throw new Error(`Unsupported image media type: ${mediaType}`);
-}
+};
 
-function sameProvenance(left: ProvenanceRecord, right: ProvenanceRecord): boolean {
+const sameProvenance = (left: ProvenanceRecord, right: ProvenanceRecord): boolean => {
   if (left.kind !== right.kind) return false;
 
   if (left.kind === 'local' && right.kind === 'local') {
@@ -73,12 +74,12 @@ function sameProvenance(left: ProvenanceRecord, right: ProvenanceRecord): boolea
   }
 
   return false;
-}
+};
 
-function mergeProvenanceRecord(
+const mergeProvenanceRecord = (
   existing: ProvenanceRecord,
   incoming: ProvenanceRecord,
-): ProvenanceRecord {
+): ProvenanceRecord => {
   if (existing.kind === 'local' && incoming.kind === 'local') {
     const attribution = incoming.attribution ?? existing.attribution;
     const license = incoming.license ?? existing.license;
@@ -113,12 +114,12 @@ function mergeProvenanceRecord(
   }
 
   throw new Error('Cannot merge provenance records of different kinds');
-}
+};
 
-function mergeProvenance(
+const mergeProvenance = (
   existing: readonly ProvenanceRecord[],
   next: ProvenanceRecord,
-): readonly ProvenanceRecord[] {
+): readonly ProvenanceRecord[] => {
   const index = existing.findIndex((source) => sameProvenance(source, next));
   if (index < 0) {
     return [...existing, next];
@@ -132,13 +133,13 @@ function mergeProvenance(
 
   merged[index] = mergeProvenanceRecord(existingRecord, next);
   return merged;
-}
+};
 
-function mergeCanonicalMetadata<T extends object>(
+const mergeCanonicalMetadata = <T extends object>(
   existing: T | undefined,
   incoming: T | undefined,
   label: string,
-): T | undefined {
+): T | undefined => {
   if (existing === undefined) return incoming;
   if (incoming === undefined) return existing;
   if (isDeepStrictEqual(existing, incoming)) {
@@ -146,7 +147,7 @@ function mergeCanonicalMetadata<T extends object>(
   }
 
   throw new Error(`Cannot change ${label} on dedupe`);
-}
+};
 
 /**
  * Merge an incoming review into an existing asset review, keeping the more
@@ -163,7 +164,7 @@ function mergeCanonicalMetadata<T extends object>(
  *   any reviewer/notes that the existing review is missing. The first
  *   recorded reviewer is kept when both sides have one.
  */
-function mergeReview(
+const mergeReview = (
   existing: AssetReview,
   incoming: {
     readonly status?: ReviewStatus;
@@ -171,7 +172,7 @@ function mergeReview(
     readonly reviewNotes?: string;
     readonly reviewedAt?: string;
   },
-): AssetReview {
+): AssetReview => {
   const incomingStatus = incoming.status;
 
   if (
@@ -215,7 +216,7 @@ function mergeReview(
     ...(mergedReviewedAt && existing.status !== 'pending' ? { reviewedAt: mergedReviewedAt } : {}),
     ...(mergedNotes ? { notes: mergedNotes } : {}),
   };
-}
+};
 
 interface ImportAssetBytesOptions {
   readonly repoRoot: string;
@@ -239,93 +240,105 @@ interface ImportAssetBytesResult {
   readonly deduped: boolean;
 }
 
-async function normalizeImportedImage(bytes: Uint8Array): Promise<Uint8Array> {
-  const normalized = await sharp(bytes)
-    .rotate()
-    .resize({
-      width: 1000,
-      height: 1000,
-      fit: 'inside',
-      withoutEnlargement: true,
-    })
-    .webp({ quality: 80 })
-    .toBuffer();
+const normalizeImportedImage = (bytes: Uint8Array) => {
+  return Effect.tryPromise(async () => {
+    const normalized = await sharp(bytes)
+      .rotate()
+      .resize({
+        width: 1000,
+        height: 1000,
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 80 })
+      .toBuffer();
 
-  return new Uint8Array(normalized);
-}
+    return new Uint8Array(normalized);
+  });
+};
 
-export async function importAssetBytes(
+export const importAssetBytesEffect = (
   options: ImportAssetBytesOptions,
-): Promise<ImportAssetBytesResult> {
-  await ensureCorpusLayout(options.repoRoot);
+): Effect.Effect<ImportAssetBytesResult, unknown> => {
+  return Effect.gen(function* () {
+    yield* Effect.tryPromise(() => ensureCorpusLayout(options.repoRoot));
 
-  const normalizedBytes = await normalizeImportedImage(options.bytes);
-  const mediaType = NORMALIZED_IMAGE_MEDIA_TYPE;
-  const sha256 = hashSha256(normalizedBytes);
-  const id = buildAssetId(sha256);
-  const fileExtension = extensionFromMediaType(mediaType, options.sourcePathForExtension);
-  const relativePath = `assets/${id}${fileExtension}`;
-  const existingIndex = options.assets.findIndex((asset) => asset.id === id);
+    const normalizedBytes = yield* normalizeImportedImage(options.bytes);
+    const mediaType = NORMALIZED_IMAGE_MEDIA_TYPE;
+    const sha256 = hashSha256(normalizedBytes);
+    const id = buildAssetId(sha256);
+    const fileExtension = extensionFromMediaType(mediaType, options.sourcePathForExtension);
+    const relativePath = `assets/${id}${fileExtension}`;
+    const existingIndex = options.assets.findIndex((asset) => asset.id === id);
 
-  if (existingIndex >= 0) {
-    const existing = options.assets[existingIndex];
-    if (!existing) throw new Error(`Missing asset at index ${existingIndex}`);
+    if (existingIndex >= 0) {
+      const existing = options.assets[existingIndex];
+      if (!existing) throw new Error(`Missing asset at index ${existingIndex}`);
 
-    if (existing.label !== options.label) {
-      throw new Error(`Asset ${id} already exists with label ${existing.label}`);
+      if (existing.label !== options.label) {
+        throw new Error(`Asset ${id} already exists with label ${existing.label}`);
+      }
+
+      const asset: CorpusAsset = {
+        ...existing,
+        provenance: mergeProvenance(existing.provenance, options.provenance),
+        review: mergeReview(existing.review, {
+          ...(options.reviewStatus ? { status: options.reviewStatus } : {}),
+          ...(options.reviewer ? { reviewer: options.reviewer } : {}),
+          ...(options.reviewNotes ? { reviewNotes: options.reviewNotes } : {}),
+          ...(options.reviewedAt ? { reviewedAt: options.reviewedAt } : {}),
+        }),
+        groundTruth: mergeCanonicalMetadata(
+          existing.groundTruth,
+          options.groundTruth,
+          'ground truth',
+        ),
+        autoScan: mergeCanonicalMetadata(existing.autoScan, options.autoScan, 'auto-scan evidence'),
+        licenseReview: mergeCanonicalMetadata(
+          existing.licenseReview,
+          options.licenseReview,
+          'license review',
+        ),
+      };
+      options.assets[existingIndex] = asset;
+      return { asset, deduped: true };
     }
 
     const asset: CorpusAsset = {
-      ...existing,
-      provenance: mergeProvenance(existing.provenance, options.provenance),
-      review: mergeReview(existing.review, {
-        ...(options.reviewStatus ? { status: options.reviewStatus } : {}),
+      id,
+      label: options.label,
+      mediaType,
+      fileExtension,
+      relativePath,
+      sha256,
+      byteLength: normalizedBytes.byteLength,
+      provenance: [options.provenance],
+      review: {
+        status: options.reviewStatus ?? 'pending',
         ...(options.reviewer ? { reviewer: options.reviewer } : {}),
-        ...(options.reviewNotes ? { reviewNotes: options.reviewNotes } : {}),
-        ...(options.reviewedAt ? { reviewedAt: options.reviewedAt } : {}),
-      }),
-      groundTruth: mergeCanonicalMetadata(
-        existing.groundTruth,
-        options.groundTruth,
-        'ground truth',
-      ),
-      autoScan: mergeCanonicalMetadata(existing.autoScan, options.autoScan, 'auto-scan evidence'),
-      licenseReview: mergeCanonicalMetadata(
-        existing.licenseReview,
-        options.licenseReview,
-        'license review',
-      ),
+        ...(options.reviewStatus && options.reviewStatus !== 'pending'
+          ? { reviewedAt: options.reviewedAt ?? new Date().toISOString() }
+          : {}),
+        ...(options.reviewNotes ? { notes: options.reviewNotes } : {}),
+      },
+      ...(options.groundTruth ? { groundTruth: options.groundTruth } : {}),
+      ...(options.autoScan ? { autoScan: options.autoScan } : {}),
+      ...(options.licenseReview ? { licenseReview: options.licenseReview } : {}),
     };
-    options.assets[existingIndex] = asset;
-    return { asset, deduped: true };
-  }
 
-  const asset: CorpusAsset = {
-    id,
-    label: options.label,
-    mediaType,
-    fileExtension,
-    relativePath,
-    sha256,
-    byteLength: normalizedBytes.byteLength,
-    provenance: [options.provenance],
-    review: {
-      status: options.reviewStatus ?? 'pending',
-      ...(options.reviewer ? { reviewer: options.reviewer } : {}),
-      ...(options.reviewStatus && options.reviewStatus !== 'pending'
-        ? { reviewedAt: options.reviewedAt ?? new Date().toISOString() }
-        : {}),
-      ...(options.reviewNotes ? { notes: options.reviewNotes } : {}),
-    },
-    ...(options.groundTruth ? { groundTruth: options.groundTruth } : {}),
-    ...(options.autoScan ? { autoScan: options.autoScan } : {}),
-    ...(options.licenseReview ? { licenseReview: options.licenseReview } : {}),
-  };
+    yield* Effect.tryPromise(() =>
+      writeFile(
+        path.join(getCorpusAssetsRoot(options.repoRoot), `${id}${fileExtension}`),
+        normalizedBytes,
+      ),
+    );
+    options.assets.push(asset);
+    return { asset, deduped: false };
+  });
+};
 
-  await writeFile(
-    path.join(getCorpusAssetsRoot(options.repoRoot), `${id}${fileExtension}`),
-    normalizedBytes,
-  );
-  options.assets.push(asset);
-  return { asset, deduped: false };
-}
+export const importAssetBytes = (
+  options: ImportAssetBytesOptions,
+): Promise<ImportAssetBytesResult> => {
+  return Effect.runPromise(importAssetBytesEffect(options));
+};

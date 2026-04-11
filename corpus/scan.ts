@@ -1,66 +1,53 @@
 import { Effect } from 'effect';
 import sharp from 'sharp';
-import {
-  detectFinderPatterns,
-  otsuBinarize,
-  resolveGrid,
-  sampleGrid,
-  toGrayscale,
-} from '../src/image/index.js';
-import { decodeGridLogical } from '../src/qr/index.js';
+import { scanFrame } from '../src/image/index.js';
 import type { AutoScan } from './schema.js';
 
-function makeImageData(width: number, height: number, pixels: Uint8ClampedArray): ImageData {
+const makeImageData = (width: number, height: number, pixels: Uint8ClampedArray): ImageData => {
   return { width, height, data: pixels, colorSpace: 'srgb' } as unknown as ImageData;
-}
+};
 
-export async function scanLocalImageFile(imagePath: string): Promise<AutoScan> {
-  const { data, info } = await sharp(imagePath)
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
+const readImageData = (imagePath: string) => {
+  return Effect.tryPromise(async () => {
+    const { data, info } = await sharp(imagePath)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
 
-  const imageData = makeImageData(info.width, info.height, new Uint8ClampedArray(data));
-  const luma = toGrayscale(imageData);
-  const binary = otsuBinarize(luma, imageData.width, imageData.height);
-  const finders = detectFinderPatterns(binary, imageData.width, imageData.height);
+    return makeImageData(info.width, info.height, new Uint8ClampedArray(data));
+  });
+};
 
-  if (finders.length < 3) {
-    return {
-      attempted: true,
-      succeeded: false,
-      results: [],
-    };
-  }
+const emptyAutoScan = (): AutoScan => {
+  return {
+    attempted: true,
+    succeeded: false,
+    results: [],
+  };
+};
 
-  const resolution = resolveGrid(finders);
-  if (resolution === null) {
-    return {
-      attempted: true,
-      succeeded: false,
-      results: [],
-    };
-  }
+const scanLocalImageFileEffect = (imagePath: string) => {
+  return Effect.gen(function* () {
+    const imageData = yield* readImageData(imagePath);
+    const results = yield* scanFrame(imageData).pipe(
+      Effect.catch(() => Effect.succeed([])),
+    );
 
-  const grid = sampleGrid(imageData.width, imageData.height, resolution, binary);
+    if (results.length === 0) {
+      return emptyAutoScan();
+    }
 
-  try {
-    const decoded = await Effect.runPromise(decodeGridLogical({ grid }));
     return {
       attempted: true,
       succeeded: true,
-      results: [
-        {
-          text: decoded.payload.text,
-          kind: decoded.payload.kind,
-        },
-      ],
-    };
-  } catch {
-    return {
-      attempted: true,
-      succeeded: false,
-      results: [],
-    };
-  }
-}
+      results: results.map((result) => ({
+        text: result.payload.text,
+        kind: result.payload.kind,
+      })),
+    } satisfies AutoScan;
+  });
+};
+
+export const scanLocalImageFile = (imagePath: string): Promise<AutoScan> => {
+  return Effect.runPromise(scanLocalImageFileEffect(imagePath));
+};

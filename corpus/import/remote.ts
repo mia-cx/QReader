@@ -1,5 +1,6 @@
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { Effect } from 'effect';
 import * as S from 'effect/Schema';
 import sharp from 'sharp';
 import { readCorpusManifest, writeCorpusManifest } from '../manifest.js';
@@ -15,7 +16,7 @@ import type {
   ReviewStatus,
 } from '../schema.js';
 import { assertHttpUrl } from '../url.js';
-import { extensionFromMediaType, hashSha256, importAssetBytes } from './store.js';
+import { extensionFromMediaType, hashSha256, importAssetBytesEffect } from './store.js';
 
 const ALLOWED_SOURCE_HOSTS = new Set([
   'pixabay.com',
@@ -140,28 +141,35 @@ interface ParsedPage {
   readonly html: string;
 }
 
+const tryPromise = <A>(evaluate: () => Promise<A>) => {
+  return Effect.tryPromise({
+    try: evaluate,
+    catch: (cause) => (cause instanceof Error ? cause : new Error(String(cause))),
+  });
+};
+
 const decodeStagedAsset = S.decodeUnknownSync(StagedRemoteAssetSchema);
 
 const SAFE_SLUG_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
 
-function assertSafeSlug(value: string, label: string): void {
+const assertSafeSlug = (value: string, label: string): void => {
   if (!SAFE_SLUG_PATTERN.test(value) || value.includes('..')) {
     throw new Error(`Unsafe ${label}: ${value}`);
   }
-}
+};
 
-function validateStagedAsset(asset: StagedRemoteAsset): void {
+const validateStagedAsset = (asset: StagedRemoteAsset): void => {
   assertSafeSlug(asset.id, 'asset id');
   assertSafeSlug(asset.imageFileName, 'image filename');
   assertHttpUrl(asset.sourcePageUrl, 'source page URL');
   assertHttpUrl(asset.imageUrl, 'image URL');
-}
+};
 
-function normalizeHost(value: string): string {
+const normalizeHost = (value: string): string => {
   return value.replace(/^www\./, '').toLowerCase();
-}
+};
 
-function assertAllowedSeed(seedUrl: string): URL {
+const assertAllowedSeed = (seedUrl: string): URL => {
   const url = new URL(seedUrl);
   const host = normalizeHost(url.hostname);
 
@@ -170,9 +178,9 @@ function assertAllowedSeed(seedUrl: string): URL {
   }
 
   return url;
-}
+};
 
-function absolutize(baseUrl: string, value: string | null): string | null {
+const absolutize = (baseUrl: string, value: string | null): string | null => {
   if (!value) return null;
   try {
     const url = new URL(value, baseUrl);
@@ -181,21 +189,21 @@ function absolutize(baseUrl: string, value: string | null): string | null {
   } catch {
     return null;
   }
-}
+};
 
-function parseSrcset(value: string, baseUrl: string): readonly string[] {
+const parseSrcset = (value: string, baseUrl: string): readonly string[] => {
   return value
     .split(',')
     .map((entry) => entry.trim().split(/\s+/, 1)[0] ?? '')
     .map((candidate) => absolutize(baseUrl, candidate))
     .filter((candidate): candidate is string => candidate !== null);
-}
+};
 
-function dedupe(values: readonly string[]): string[] {
+const dedupe = (values: readonly string[]): string[] => {
   return [...new Set(values)];
-}
+};
 
-function matchAllGroups(pattern: RegExp, value: string, groupIndex = 1): string[] {
+const matchAllGroups = (pattern: RegExp, value: string, groupIndex = 1): string[] => {
   if (!pattern.global) {
     throw new Error('matchAllGroups requires a global regular expression');
   }
@@ -212,30 +220,32 @@ function matchAllGroups(pattern: RegExp, value: string, groupIndex = 1): string[
   }
 
   return matches;
-}
+};
 
-function getStagingRoot(repoRoot: string): string {
+const getStagingRoot = (repoRoot: string): string => {
   return path.join(repoRoot, 'corpus', 'staging');
-}
+};
 
-async function ensureStageDir(repoRoot: string): Promise<string> {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const stageDir = path.join(getStagingRoot(repoRoot), timestamp);
-  await mkdir(stageDir, { recursive: true });
-  return stageDir;
-}
+const ensureStageDir = (repoRoot: string) => {
+  return tryPromise(async () => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const stageDir = path.join(getStagingRoot(repoRoot), timestamp);
+    await mkdir(stageDir, { recursive: true });
+    return stageDir;
+  });
+};
 
-function getAssetDir(stageDir: string, assetId: string): string {
+const getAssetDir = (stageDir: string, assetId: string): string => {
   return path.join(stageDir, assetId);
-}
+};
 
-function getAssetManifestPath(stageDir: string, assetId: string): string {
+const getAssetManifestPath = (stageDir: string, assetId: string): string => {
   return path.join(getAssetDir(stageDir, assetId), 'manifest.json');
-}
+};
 
-function getAssetImagePath(stageDir: string, asset: StagedRemoteAsset): string {
+const getAssetImagePath = (stageDir: string, asset: StagedRemoteAsset): string => {
   return path.join(getAssetDir(stageDir, asset.id), asset.imageFileName);
-}
+};
 
 /**
  * Resolve `<stageDir>/<assetId>/<fileName>` and assert that the final
@@ -243,11 +253,11 @@ function getAssetImagePath(stageDir: string, asset: StagedRemoteAsset): string {
  * prefix check on top of `assertSafeSlug`, and gives a meaningful guarantee
  * even if the upstream validators are ever weakened or bypassed.
  */
-export function resolveStagedAssetPath(
+export const resolveStagedAssetPath = (
   stageDir: string,
   assetId: string,
   fileName: string,
-): string {
+): string => {
   assertSafeSlug(assetId, 'asset id');
   assertSafeSlug(fileName, 'image filename');
 
@@ -262,12 +272,12 @@ export function resolveStagedAssetPath(
   }
 
   return absoluteTarget;
-}
+};
 
-function detectBestEffortLicense(
+const detectBestEffortLicense = (
   host: string,
   html: string,
-): { bestEffortLicense?: string; licenseEvidenceText?: string } {
+): { bestEffortLicense?: string; licenseEvidenceText?: string } => {
   const lowerHtml = html.toLowerCase();
   const evidenceMatch =
     /(public domain|cc0|pixabay license|pexels license|royalty free|free download|unsplash license)/i.exec(
@@ -308,80 +318,86 @@ function detectBestEffortLicense(
     return { licenseEvidenceText: evidenceMatch };
   }
   return {};
-}
+};
 
-async function readLimitedBody(
+const readLimitedBody = (
   response: Response,
   maxBytes: number,
   label: string,
-): Promise<Uint8Array> {
-  const declaredLength = Number(response.headers.get('content-length'));
-  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
-    throw new Error(`Response for ${label} exceeds ${maxBytes} bytes`);
-  }
-
-  if (!response.body) {
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    if (bytes.byteLength > maxBytes) {
+) => {
+  return tryPromise(async () => {
+    const declaredLength = Number(response.headers.get('content-length'));
+    if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
       throw new Error(`Response for ${label} exceeds ${maxBytes} bytes`);
     }
-    return bytes;
-  }
 
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = value instanceof Uint8Array ? value : new Uint8Array(value);
-      total += chunk.byteLength;
-      if (total > maxBytes) {
+    if (!response.body) {
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (bytes.byteLength > maxBytes) {
         throw new Error(`Response for ${label} exceeds ${maxBytes} bytes`);
       }
-      chunks.push(chunk);
+      return bytes;
     }
-  } finally {
-    reader.releaseLock();
-  }
 
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return bytes;
-}
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
 
-async function fetchText(url: string, fetchImpl: FetchLike): Promise<ParsedPage> {
-  const response = await fetchImpl(url, {
-    headers: {
-      accept: 'text/html,application/xhtml+xml',
-    },
-    redirect: 'manual',
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = value instanceof Uint8Array ? value : new Uint8Array(value);
+        total += chunk.byteLength;
+        if (total > maxBytes) {
+          throw new Error(`Response for ${label} exceeds ${maxBytes} bytes`);
+        }
+        chunks.push(chunk);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return bytes;
   });
-  if (response.status >= 300 && response.status < 400) {
-    throw new Error(`Unexpected redirect while fetching page ${url}`);
-  }
-  if (!response.ok) {
-    throw new Error(`Failed to fetch page ${url}: ${response.status}`);
-  }
+};
 
-  const htmlBytes = await readLimitedBody(response, MAX_HTML_BYTES, `page ${url}`);
-  const html = new TextDecoder().decode(htmlBytes);
-  const title = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1]?.trim() ?? null;
-  return {
-    url,
-    title,
-    html,
-  };
-}
+const fetchText = (url: string, fetchImpl: FetchLike) => {
+  return Effect.gen(function* () {
+    const response = yield* tryPromise(() =>
+      fetchImpl(url, {
+        headers: {
+          accept: 'text/html,application/xhtml+xml',
+        },
+        redirect: 'manual',
+      }),
+    );
+    if (response.status >= 300 && response.status < 400) {
+      throw new Error(`Unexpected redirect while fetching page ${url}`);
+    }
+    if (!response.ok) {
+      throw new Error(`Failed to fetch page ${url}: ${response.status}`);
+    }
 
-function extractPageLinks(pageUrl: string, html: string): readonly string[] {
+    const htmlBytes = yield* readLimitedBody(response, MAX_HTML_BYTES, `page ${url}`);
+    const html = new TextDecoder().decode(htmlBytes);
+    const title = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1]?.trim() ?? null;
+    return {
+      url,
+      title,
+      html,
+    };
+  });
+};
+
+const extractPageLinks = (pageUrl: string, html: string): readonly string[] => {
   const baseUrl = new URL(pageUrl);
   const host = normalizeHost(baseUrl.hostname);
   const patterns = PAGE_LINK_PATTERNS[host] ?? [];
@@ -394,9 +410,9 @@ function extractPageLinks(pageUrl: string, html: string): readonly string[] {
     .filter((href) => patterns.some((pattern) => pattern.test(new URL(href).pathname)));
 
   return dedupe(matches);
-}
+};
 
-function isAllowedImageHost(sourceHost: string, imageUrl: string): boolean {
+const isAllowedImageHost = (sourceHost: string, imageUrl: string): boolean => {
   try {
     const imageHost = normalizeHost(new URL(imageUrl).hostname);
     const allowed = ALLOWED_IMAGE_HOSTS[sourceHost];
@@ -405,9 +421,9 @@ function isAllowedImageHost(sourceHost: string, imageUrl: string): boolean {
   } catch {
     return false;
   }
-}
+};
 
-function extractImageCandidates(pageUrl: string, html: string): readonly string[] {
+const extractImageCandidates = (pageUrl: string, html: string): readonly string[] => {
   const metaCandidates = [
     ...matchAllGroups(
       /<meta\b[^>]*(?:property|name)=["'](?:og:image|twitter:image)["'][^>]*content=["']([^"']+)["'][^>]*>/gi,
@@ -428,88 +444,127 @@ function extractImageCandidates(pageUrl: string, html: string): readonly string[
     .filter((candidate): candidate is string => candidate !== null);
 
   return dedupe([...metaCandidates, ...imageCandidates]);
-}
+};
 
-async function fetchImage(
+const fetchImage = (
   url: string,
   fetchImpl: FetchLike,
-): Promise<{ bytes: Uint8Array; mediaType: string }> {
-  const response = await fetchImpl(url, {
-    headers: {
-      accept: 'image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8,*/*;q=0.1',
-    },
-    redirect: 'manual',
+) => {
+  return Effect.gen(function* () {
+    const response = yield* tryPromise(() =>
+      fetchImpl(url, {
+        headers: {
+          accept: 'image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8,*/*;q=0.1',
+        },
+        redirect: 'manual',
+      }),
+    );
+    if (response.status >= 300 && response.status < 400) {
+      throw new Error(`Unexpected redirect while fetching image ${url}`);
+    }
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image ${url}: ${response.status}`);
+    }
+
+    const bytes = yield* readLimitedBody(response, MAX_IMAGE_BYTES, `image ${url}`);
+    return {
+      bytes,
+      mediaType: response.headers.get('content-type') ?? 'application/octet-stream',
+    };
   });
-  if (response.status >= 300 && response.status < 400) {
-    throw new Error(`Unexpected redirect while fetching image ${url}`);
-  }
-  if (!response.ok) {
-    throw new Error(`Failed to fetch image ${url}: ${response.status}`);
-  }
+};
 
-  return {
-    bytes: await readLimitedBody(response, MAX_IMAGE_BYTES, `image ${url}`),
-    mediaType: response.headers.get('content-type') ?? 'application/octet-stream',
-  };
-}
-
-export async function writeStagedRemoteAsset(
+const writeStagedRemoteAssetEffect = (
   stageDir: string,
   asset: StagedRemoteAsset,
   bytes: Uint8Array,
-): Promise<void> {
-  validateStagedAsset(asset);
-  const assetDir = getAssetDir(stageDir, asset.id);
-  await mkdir(assetDir, { recursive: true });
-  await writeFile(path.join(assetDir, asset.imageFileName), bytes);
-  await writeFile(
-    getAssetManifestPath(stageDir, asset.id),
-    `${JSON.stringify(asset, null, 2)}\n`,
-    'utf8',
-  );
-}
+): Effect.Effect<void, unknown> => {
+  return tryPromise(async () => {
+    validateStagedAsset(asset);
+    const assetDir = getAssetDir(stageDir, asset.id);
+    await mkdir(assetDir, { recursive: true });
+    await writeFile(path.join(assetDir, asset.imageFileName), bytes);
+    await writeFile(
+      getAssetManifestPath(stageDir, asset.id),
+      `${JSON.stringify(asset, null, 2)}\n`,
+      'utf8',
+    );
+  });
+};
 
-export async function updateStagedRemoteAsset(
+export const writeStagedRemoteAsset = (
   stageDir: string,
   asset: StagedRemoteAsset,
-): Promise<void> {
-  validateStagedAsset(asset);
-  await writeFile(
-    getAssetManifestPath(stageDir, asset.id),
-    `${JSON.stringify(asset, null, 2)}\n`,
-    'utf8',
-  );
-}
+  bytes: Uint8Array,
+): Promise<void> => {
+  return Effect.runPromise(writeStagedRemoteAssetEffect(stageDir, asset, bytes));
+};
 
-export async function readStagedRemoteAsset(
+const updateStagedRemoteAssetEffect = (
+  stageDir: string,
+  asset: StagedRemoteAsset,
+): Effect.Effect<void, unknown> => {
+  return tryPromise(async () => {
+    validateStagedAsset(asset);
+    await writeFile(
+      getAssetManifestPath(stageDir, asset.id),
+      `${JSON.stringify(asset, null, 2)}\n`,
+      'utf8',
+    );
+  });
+};
+
+export const updateStagedRemoteAsset = (
+  stageDir: string,
+  asset: StagedRemoteAsset,
+): Promise<void> => {
+  return Effect.runPromise(updateStagedRemoteAssetEffect(stageDir, asset));
+};
+
+const readStagedRemoteAssetEffect = (
   stageDir: string,
   assetId: string,
-): Promise<StagedRemoteAsset> {
-  assertSafeSlug(assetId, 'asset id');
-  const raw = await readFile(getAssetManifestPath(stageDir, assetId), 'utf8');
-  const asset = decodeStagedAsset(JSON.parse(raw));
-  validateStagedAsset(asset);
-  return asset;
-}
+): Effect.Effect<StagedRemoteAsset, unknown> => {
+  return Effect.gen(function* () {
+    assertSafeSlug(assetId, 'asset id');
+    const raw = yield* tryPromise(() => readFile(getAssetManifestPath(stageDir, assetId), 'utf8'));
+    const asset = decodeStagedAsset(JSON.parse(raw));
+    validateStagedAsset(asset);
+    return asset;
+  });
+};
 
-export async function readStagedRemoteAssets(
+export const readStagedRemoteAsset = (
   stageDir: string,
-): Promise<readonly StagedRemoteAsset[]> {
-  const entries = await readdir(stageDir, { withFileTypes: true });
-  const assets: StagedRemoteAsset[] = [];
+  assetId: string,
+): Promise<StagedRemoteAsset> => {
+  return Effect.runPromise(readStagedRemoteAssetEffect(stageDir, assetId));
+};
 
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    assets.push(await readStagedRemoteAsset(stageDir, entry.name));
-  }
+const readStagedRemoteAssetsEffect = (
+  stageDir: string,
+): Effect.Effect<readonly StagedRemoteAsset[], unknown> => {
+  return Effect.gen(function* () {
+    const entries = yield* tryPromise(() => readdir(stageDir, { withFileTypes: true }));
+    const assets: StagedRemoteAsset[] = [];
 
-  return assets.sort((left, right) => left.id.localeCompare(right.id));
-}
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      assets.push(yield* readStagedRemoteAssetEffect(stageDir, entry.name));
+    }
 
-function buildRemoteSource(
+    return assets.sort((left, right) => left.id.localeCompare(right.id));
+  });
+};
+
+export const readStagedRemoteAssets = (stageDir: string): Promise<readonly StagedRemoteAsset[]> => {
+  return Effect.runPromise(readStagedRemoteAssetsEffect(stageDir));
+};
+
+const buildRemoteSource = (
   asset: StagedRemoteAsset,
   options: ImportStagedRemoteAssetsOptions,
-): RemoteSource {
+): RemoteSource => {
   const license = asset.confirmedLicense ?? options.license;
   return {
     kind: 'remote',
@@ -521,12 +576,12 @@ function buildRemoteSource(
     ...(license ? { license } : {}),
     ...(options.provenanceNotes ? { notes: options.provenanceNotes } : {}),
   };
-}
+};
 
-function buildLicenseReview(
+const buildLicenseReview = (
   asset: StagedRemoteAsset,
   reviewer?: string,
-): LicenseReview | undefined {
+): LicenseReview | undefined => {
   if (!asset.bestEffortLicense && !asset.licenseEvidenceText && !asset.confirmedLicense) {
     return undefined;
   }
@@ -538,158 +593,188 @@ function buildLicenseReview(
     ...(reviewer ? { licenseVerifiedBy: reviewer } : {}),
     ...(asset.review.reviewedAt ? { licenseVerifiedAt: asset.review.reviewedAt } : {}),
   };
-}
+};
 
-export async function scrapeRemoteAssets(
+const scrapeRemoteAssetsEffect = (
   options: ImportRemoteAssetOptions,
   fetchImpl: FetchLike = fetch,
-): Promise<ScrapeRemoteAssetsResult> {
-  const stageDir = await ensureStageDir(options.repoRoot);
-  const assets: StagedRemoteAsset[] = [];
-  const seenImageUrls = new Set<string>();
-  const limit = options.limit ?? 100;
+) => {
+  return Effect.gen(function* () {
+    const stageDir = yield* ensureStageDir(options.repoRoot);
+    const assets: StagedRemoteAsset[] = [];
+    const seenImageUrls = new Set<string>();
+    const limit = options.limit ?? 100;
 
-  for (const seedUrl of options.seedUrls) {
-    if (assets.length >= limit) break;
-
-    const seed = assertAllowedSeed(seedUrl);
-    const seedPage = await fetchText(seed.toString(), fetchImpl);
-    const pageUrls = extractPageLinks(seedPage.url, seedPage.html);
-    const candidatePages = pageUrls.length > 0 ? pageUrls : [seedPage.url];
-
-    for (const pageUrl of candidatePages) {
+    for (const seedUrl of options.seedUrls) {
       if (assets.length >= limit) break;
 
-      const page = pageUrl === seedPage.url ? seedPage : await fetchText(pageUrl, fetchImpl);
-      const imageCandidates = extractImageCandidates(page.url, page.html);
-      const host = normalizeHost(new URL(page.url).hostname);
-      const licenseHint = detectBestEffortLicense(host, page.html);
+      const seed = assertAllowedSeed(seedUrl);
+      const seedPage = yield* fetchText(seed.toString(), fetchImpl);
+      const pageUrls = extractPageLinks(seedPage.url, seedPage.html);
+      const candidatePages = pageUrls.length > 0 ? pageUrls : [seedPage.url];
 
-      for (const imageUrl of imageCandidates) {
+      for (const pageUrl of candidatePages) {
         if (assets.length >= limit) break;
-        if (seenImageUrls.has(imageUrl)) continue;
 
-        if (!isAllowedImageHost(host, imageUrl)) {
-          options.log?.(`Skipped ${imageUrl}: host not in CDN allowlist for ${host}`);
-          continue;
+        let page = seedPage;
+        if (pageUrl !== seedPage.url) {
+          page = yield* fetchText(pageUrl, fetchImpl);
         }
+        const imageCandidates = extractImageCandidates(page.url, page.html);
+        const host = normalizeHost(new URL(page.url).hostname);
+        const licenseHint = detectBestEffortLicense(host, page.html);
 
-        try {
-          const { bytes, mediaType } = await fetchImage(imageUrl, fetchImpl);
-          const extension = extensionFromMediaType(mediaType, imageUrl);
-          const metadata = await sharp(bytes).metadata();
-          const sha256 = hashSha256(bytes);
-          const imageUrlHash = hashSha256(new TextEncoder().encode(imageUrl));
-          const id = `stage-${sha256.slice(0, 16)}-${imageUrlHash.slice(0, 8)}`;
-          const asset: StagedRemoteAsset = {
-            version: 1,
-            id,
-            suggestedLabel: options.label,
-            imageFileName: `image${extension}`,
-            sourcePageUrl: page.url,
-            imageUrl,
-            seedUrl,
-            sourceHost: host,
-            fetchedAt: new Date().toISOString(),
-            mediaType,
-            byteLength: bytes.byteLength,
-            sha256,
-            width: metadata.width ?? 0,
-            height: metadata.height ?? 0,
-            ...(page.title ? { pageTitle: page.title } : {}),
-            ...licenseHint,
-            review: {
-              status: 'pending',
-            },
-          };
+        for (const imageUrl of imageCandidates) {
+          if (assets.length >= limit) break;
+          if (seenImageUrls.has(imageUrl)) continue;
 
-          await writeStagedRemoteAsset(stageDir, asset, bytes);
+          if (!isAllowedImageHost(host, imageUrl)) {
+            options.log?.(`Skipped ${imageUrl}: host not in CDN allowlist for ${host}`);
+            continue;
+          }
+
+          const asset = yield* Effect.gen(function* () {
+              const { bytes, mediaType } = yield* fetchImage(imageUrl, fetchImpl);
+              const extension = extensionFromMediaType(mediaType, imageUrl);
+            const metadata = yield* tryPromise(() => sharp(bytes).metadata());
+              const sha256 = hashSha256(bytes);
+              const imageUrlHash = hashSha256(new TextEncoder().encode(imageUrl));
+              const stagedAsset: StagedRemoteAsset = {
+                version: 1,
+                id: `stage-${sha256.slice(0, 16)}-${imageUrlHash.slice(0, 8)}`,
+                suggestedLabel: options.label,
+                imageFileName: `image${extension}`,
+                sourcePageUrl: page.url,
+                imageUrl,
+                seedUrl,
+                sourceHost: host,
+                fetchedAt: new Date().toISOString(),
+                mediaType,
+                byteLength: bytes.byteLength,
+                sha256,
+                width: metadata.width ?? 0,
+                height: metadata.height ?? 0,
+                ...(page.title ? { pageTitle: page.title } : {}),
+                ...licenseHint,
+                review: {
+                  status: 'pending',
+                },
+              };
+
+              yield* writeStagedRemoteAssetEffect(stageDir, stagedAsset, bytes);
+              return stagedAsset;
+            }).pipe(
+              Effect.catch((error: unknown) =>
+                Effect.sync(() => {
+                  options.log?.(
+                    `Skipped ${imageUrl}: ${error instanceof Error ? error.message : String(error)}`,
+                  );
+                  return null;
+                }),
+              ),
+            );
+
+          if (asset === null) {
+            continue;
+          }
+
           assets.push(asset);
           seenImageUrls.add(imageUrl);
-        } catch (error) {
-          options.log?.(
-            `Skipped ${imageUrl}: ${error instanceof Error ? error.message : String(error)}`,
-          );
         }
       }
     }
-  }
 
-  return { stageDir, assets };
-}
+    return { stageDir, assets };
+  });
+};
 
-export async function importStagedRemoteAssets(
+export const scrapeRemoteAssets = (
+  options: ImportRemoteAssetOptions,
+  fetchImpl: FetchLike = fetch,
+): Promise<ScrapeRemoteAssetsResult> => {
+  return Effect.runPromise(scrapeRemoteAssetsEffect(options, fetchImpl));
+};
+
+const importStagedRemoteAssetsEffect = (
   options: ImportStagedRemoteAssetsOptions,
-): Promise<ImportRemoteAssetResult> {
-  const stagedAssets = await readStagedRemoteAssets(options.stageDir);
-  const manifest = await readCorpusManifest(options.repoRoot);
-  const assets = [...manifest.assets];
-  const imported: CorpusAsset[] = [];
-  const deduped: CorpusAsset[] = [];
+) => {
+  return Effect.gen(function* () {
+    const stagedAssets = yield* readStagedRemoteAssetsEffect(options.stageDir);
+    const manifest = yield* tryPromise(() => readCorpusManifest(options.repoRoot));
+    const assets = [...manifest.assets];
+    const imported: CorpusAsset[] = [];
+    const deduped: CorpusAsset[] = [];
 
-  for (const stagedAsset of stagedAssets) {
-    const effectiveReviewStatus =
-      stagedAsset.review.status === 'pending'
-        ? (options.reviewStatus ?? 'pending')
-        : stagedAsset.review.status;
+    for (const stagedAsset of stagedAssets) {
+      const effectiveReviewStatus =
+        stagedAsset.review.status === 'pending'
+          ? (options.reviewStatus ?? 'pending')
+          : stagedAsset.review.status;
 
-    if (effectiveReviewStatus !== 'approved') {
-      continue;
-    }
+      if (effectiveReviewStatus !== 'approved') {
+        continue;
+      }
 
-    const reviewer = stagedAsset.review.reviewer ?? options.reviewer;
-    const reviewNotes = stagedAsset.review.notes ?? options.reviewNotes;
-    const reviewedAt = stagedAsset.review.reviewedAt ?? new Date().toISOString();
-    const approvedAsset: StagedRemoteAsset = {
-      ...stagedAsset,
-      review: {
-        status: 'approved',
+      const reviewer = stagedAsset.review.reviewer ?? options.reviewer;
+      const reviewNotes = stagedAsset.review.notes ?? options.reviewNotes;
+      const reviewedAt = stagedAsset.review.reviewedAt ?? new Date().toISOString();
+      const approvedAsset: StagedRemoteAsset = {
+        ...stagedAsset,
+        review: {
+          status: 'approved',
+          ...(reviewer ? { reviewer } : {}),
+          reviewedAt,
+          ...(reviewNotes ? { notes: reviewNotes } : {}),
+        },
+      };
+
+      const sourcePath = getAssetImagePath(options.stageDir, approvedAsset);
+      const bytes = yield* tryPromise(() => readFile(sourcePath));
+      const licenseReview = buildLicenseReview(approvedAsset, reviewer);
+      const result = yield* importAssetBytesEffect({
+        repoRoot: options.repoRoot,
+        assets,
+        bytes: new Uint8Array(bytes),
+        mediaType: approvedAsset.mediaType,
+        sourcePathForExtension: approvedAsset.imageUrl,
+        label: options.overrideLabel ?? approvedAsset.suggestedLabel,
+        provenance: buildRemoteSource(approvedAsset, options),
+        reviewStatus: 'approved',
         ...(reviewer ? { reviewer } : {}),
-        reviewedAt,
-        ...(reviewNotes ? { notes: reviewNotes } : {}),
-      },
-    };
+        ...(reviewNotes ? { reviewNotes } : {}),
+        ...(approvedAsset.review.reviewedAt ? { reviewedAt: approvedAsset.review.reviewedAt } : {}),
+        ...(approvedAsset.groundTruth
+          ? { groundTruth: approvedAsset.groundTruth as GroundTruth }
+          : {}),
+        ...(approvedAsset.autoScan ? { autoScan: approvedAsset.autoScan as AutoScan } : {}),
+        ...(licenseReview ? { licenseReview } : {}),
+      });
 
-    const sourcePath = getAssetImagePath(options.stageDir, approvedAsset);
-    const bytes = await readFile(sourcePath);
-    const licenseReview = buildLicenseReview(approvedAsset, reviewer);
-    const result = await importAssetBytes({
-      repoRoot: options.repoRoot,
-      assets,
-      bytes: new Uint8Array(bytes),
-      mediaType: approvedAsset.mediaType,
-      sourcePathForExtension: approvedAsset.imageUrl,
-      label: options.overrideLabel ?? approvedAsset.suggestedLabel,
-      provenance: buildRemoteSource(approvedAsset, options),
-      reviewStatus: 'approved',
-      ...(reviewer ? { reviewer } : {}),
-      ...(reviewNotes ? { reviewNotes } : {}),
-      ...(approvedAsset.review.reviewedAt ? { reviewedAt: approvedAsset.review.reviewedAt } : {}),
-      ...(approvedAsset.groundTruth
-        ? { groundTruth: approvedAsset.groundTruth as GroundTruth }
-        : {}),
-      ...(approvedAsset.autoScan ? { autoScan: approvedAsset.autoScan as AutoScan } : {}),
-      ...(licenseReview ? { licenseReview } : {}),
-    });
+      if (result.deduped) {
+        deduped.push(result.asset);
+      } else {
+        imported.push(result.asset);
+      }
 
-    if (result.deduped) {
-      deduped.push(result.asset);
-    } else {
-      imported.push(result.asset);
+      yield* updateStagedRemoteAssetEffect(options.stageDir, {
+        ...approvedAsset,
+        importedAssetId: result.asset.id,
+      });
     }
 
-    await updateStagedRemoteAsset(options.stageDir, {
-      ...approvedAsset,
-      importedAssetId: result.asset.id,
-    });
-  }
+    const nextManifest = { version: 1 as const, assets };
+    yield* tryPromise(() => writeCorpusManifest(options.repoRoot, nextManifest));
 
-  const nextManifest = { version: 1 as const, assets };
-  await writeCorpusManifest(options.repoRoot, nextManifest);
+    return {
+      imported,
+      deduped,
+      manifest: nextManifest,
+    };
+  });
+};
 
-  return {
-    imported,
-    deduped,
-    manifest: nextManifest,
-  };
-}
+export const importStagedRemoteAssets = (
+  options: ImportStagedRemoteAssetsOptions,
+): Promise<ImportRemoteAssetResult> => {
+  return Effect.runPromise(importStagedRemoteAssetsEffect(options));
+};

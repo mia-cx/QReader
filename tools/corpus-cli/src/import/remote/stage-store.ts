@@ -5,6 +5,7 @@ import * as S from 'effect/Schema';
 import { assertHttpUrl } from '../../url.js';
 import { type StagedRemoteAsset, StagedRemoteAssetSchema } from './contracts.js';
 import { tryPromise } from './effect.js';
+import { assertAllowedStagedAssetUrls } from './policy.js';
 
 const decodeStagedAsset = S.decodeUnknownSync(StagedRemoteAssetSchema);
 const SAFE_SLUG_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
@@ -18,8 +19,10 @@ const assertSafeSlug = (value: string, label: string): void => {
 const validateStagedAsset = (asset: StagedRemoteAsset): void => {
   assertSafeSlug(asset.id, 'asset id');
   assertSafeSlug(asset.imageFileName, 'image filename');
+  assertHttpUrl(asset.seedUrl, 'seed URL');
   assertHttpUrl(asset.sourcePageUrl, 'source page URL');
   assertHttpUrl(asset.imageUrl, 'image URL');
+  assertAllowedStagedAssetUrls(asset);
 };
 
 export const getStagingRoot = (repoRoot: string): string => {

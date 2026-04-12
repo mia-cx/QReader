@@ -1,3 +1,4 @@
+import { assertAllowedStagedAssetUrls } from './import/remote/policy.js';
 import {
   resolveStagedAssetPath,
   type StagedRemoteAsset,
@@ -5,7 +6,6 @@ import {
   updateStagedRemoteAsset,
 } from './import/remote.js';
 import type { AutoScan, GroundTruth } from './schema.js';
-import { assertHttpUrl } from './url.js';
 
 interface ScanAssetResult {
   readonly attempted: boolean;
@@ -74,6 +74,28 @@ const groundTruthMatchesScan = (groundTruth: GroundTruth, scanResult: ScanAssetR
   return groundTruth.codes.every((code, index) => code.text === scanResult.results[index]?.text);
 };
 
+const buildReviewedAsset = (
+  asset: StagedRemoteAsset,
+  updates: {
+    readonly review: StagedRemoteAsset['review'];
+    readonly suggestedLabel?: StagedRemoteAsset['suggestedLabel'];
+    readonly confirmedLicense?: string;
+    readonly groundTruth?: GroundTruth;
+    readonly autoScan?: AutoScan;
+  },
+): StagedRemoteAsset => {
+  const { confirmedLicense: _ignoredConfirmedLicense, ...assetWithoutConfirmedLicense } = asset;
+
+  return {
+    ...assetWithoutConfirmedLicense,
+    ...(updates.suggestedLabel ? { suggestedLabel: updates.suggestedLabel } : {}),
+    review: updates.review,
+    ...(updates.confirmedLicense ? { confirmedLicense: updates.confirmedLicense } : {}),
+    ...(updates.groundTruth ? { groundTruth: updates.groundTruth } : {}),
+    ...(updates.autoScan ? { autoScan: updates.autoScan } : {}),
+  };
+};
+
 export const reviewStagedAssets = async (
   options: ReviewStagedAssetsOptions,
 ): Promise<ReviewSummary> => {
@@ -87,7 +109,7 @@ export const reviewStagedAssets = async (
     }
 
     const imagePath = resolveStagedAssetPath(options.stageDir, asset.id, asset.imageFileName);
-    assertHttpUrl(asset.sourcePageUrl, 'source page URL');
+    assertAllowedStagedAssetUrls(asset);
 
     logAssetMetadata(asset, imagePath, options.log);
     await options.openSourcePage(asset.sourcePageUrl);
@@ -99,15 +121,17 @@ export const reviewStagedAssets = async (
     const allowInCorpus = await options.promptAllowInCorpus(asset);
 
     if (!allowInCorpus) {
-      await updateStagedRemoteAsset(options.stageDir, {
-        ...asset,
-        review: {
-          status: 'rejected',
-          reviewer: options.reviewer,
-          reviewedAt: new Date().toISOString(),
-        },
-        ...(confirmedLicense ? { confirmedLicense } : {}),
-      });
+      await updateStagedRemoteAsset(
+        options.stageDir,
+        buildReviewedAsset(asset, {
+          review: {
+            status: 'rejected',
+            reviewer: options.reviewer,
+            reviewedAt: new Date().toISOString(),
+          },
+          ...(confirmedLicense ? { confirmedLicense } : {}),
+        }),
+      );
       rejected += 1;
       continue;
     }
@@ -125,20 +149,20 @@ export const reviewStagedAssets = async (
 
     const autoScan = toAutoScan(scanResult, groundTruthMatchesScan(groundTruth, scanResult));
 
-    await updateStagedRemoteAsset(options.stageDir, {
-      ...asset,
-      suggestedLabel: qrCount === 0 ? 'non-qr-negative' : 'qr-positive',
-      review: {
-        status: 'approved',
-        reviewer: options.reviewer,
-        reviewedAt: new Date().toISOString(),
-      },
-      ...(confirmedLicense || asset.bestEffortLicense
-        ? { confirmedLicense: confirmedLicense || asset.bestEffortLicense }
-        : {}),
-      groundTruth,
-      autoScan,
-    });
+    await updateStagedRemoteAsset(
+      options.stageDir,
+      buildReviewedAsset(asset, {
+        suggestedLabel: qrCount === 0 ? 'non-qr-negative' : 'qr-positive',
+        review: {
+          status: 'approved',
+          reviewer: options.reviewer,
+          reviewedAt: new Date().toISOString(),
+        },
+        ...(confirmedLicense ? { confirmedLicense } : {}),
+        groundTruth,
+        autoScan,
+      }),
+    );
     approved += 1;
   }
 

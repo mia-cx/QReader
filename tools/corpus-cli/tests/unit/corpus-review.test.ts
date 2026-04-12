@@ -146,6 +146,46 @@ describe('interactive staged review', () => {
     });
   });
 
+  it('does not promote a license hint into confirmed license when reviewer clears it', async () => {
+    const repoRoot = await createRepoRoot();
+    const staged = await scrapeRemoteAssets(
+      {
+        repoRoot,
+        seedUrls: ['https://pixabay.com/images/search/qr%20code/'],
+        label: 'qr-positive',
+        limit: 1,
+      },
+      buildMockFetch(),
+    );
+
+    await reviewStagedAssets({
+      stageDir: staged.stageDir,
+      reviewer: 'mia',
+      assets: streamStagedRemoteAssets(staged.stageDir),
+      promptConfirmedLicense: async () => undefined,
+      promptAllowInCorpus: async () => true,
+      promptQrCount: async () => 1,
+      promptGroundTruth: async () => ({
+        qrCount: 1,
+        codes: [{ text: 'https://example.com' }],
+      }),
+      scanAsset: async () => ({
+        attempted: true,
+        succeeded: true,
+        results: [{ text: 'https://example.com' }],
+      }),
+      openSourcePage: async () => {},
+      log: () => {},
+    });
+
+    const reviewed = await readStagedRemoteAsset(
+      staged.stageDir,
+      staged.assets[0]?.id ?? 'missing',
+    );
+    expect(reviewed.confirmedLicense).toBeUndefined();
+    expect(reviewed.bestEffortLicense).toBe('Pixabay License');
+  });
+
   it('marks acceptedAsTruth as false when reviewer edits the scanned text', async () => {
     const repoRoot = await createRepoRoot();
     const staged = await scrapeRemoteAssets(
@@ -235,6 +275,50 @@ describe('interactive staged review', () => {
       status: 'rejected',
       reviewer: 'mia',
     });
+  });
+
+  it('rejects staged source pages outside allowlisted source host before opening browser', async () => {
+    const openedUrls: string[] = [];
+
+    await expect(
+      reviewStagedAssets({
+        stageDir: '/tmp/ironqr-stage',
+        reviewer: 'mia',
+        assets: (async function* () {
+          yield {
+            version: 1 as const,
+            id: 'stage-deadbeefcafef00d',
+            suggestedLabel: 'qr-positive' as const,
+            imageFileName: 'image.webp',
+            sourcePageUrl: 'http://127.0.0.1/internal',
+            imageUrl: 'https://cdn.pixabay.com/first.png',
+            seedUrl: 'https://pixabay.com/images/search/qr%20code/',
+            sourceHost: 'pixabay.com',
+            fetchedAt: '2026-04-10T00:00:00.000Z',
+            mediaType: 'image/webp',
+            byteLength: 1,
+            sha256: '00',
+            sourceSha256: '11',
+            sourceMediaType: 'image/png',
+            sourceByteLength: 1,
+            width: 1,
+            height: 1,
+            review: { status: 'pending' as const },
+          };
+        })(),
+        promptConfirmedLicense: async () => undefined,
+        promptAllowInCorpus: async () => true,
+        promptQrCount: async () => 0,
+        promptGroundTruth: async () => ({ qrCount: 0, codes: [] }),
+        scanAsset: async () => ({ attempted: false, succeeded: false, results: [] }),
+        openSourcePage: async (url) => {
+          openedUrls.push(url);
+        },
+        log: () => {},
+      }),
+    ).rejects.toThrow(/Source page host is not allowlisted/);
+
+    expect(openedUrls).toEqual([]);
   });
 
   it('marks approved zero-qr assets as non-qr-negative', async () => {

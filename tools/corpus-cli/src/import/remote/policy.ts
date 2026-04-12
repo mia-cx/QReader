@@ -25,6 +25,13 @@ const ALLOWED_IMAGE_HOSTS: Record<string, readonly string[]> = {
   'unsplash.com': ['unsplash.com', 'images.unsplash.com'],
 };
 
+interface StagedRemoteAssetUrls {
+  readonly seedUrl: string;
+  readonly sourceHost: string;
+  readonly sourcePageUrl: string;
+  readonly imageUrl: string;
+}
+
 export const normalizeHost = (value: string): string => {
   return value.replace(/^www\./, '').toLowerCase();
 };
@@ -52,5 +59,28 @@ export const isAllowedImageHost = (sourceHost: string, imageUrl: string): boolea
     return allowed.some((host) => normalizeHost(host) === imageHost);
   } catch {
     return false;
+  }
+};
+
+export const assertAllowedStagedAssetUrls = ({
+  seedUrl,
+  sourceHost,
+  sourcePageUrl,
+  imageUrl,
+}: StagedRemoteAssetUrls): void => {
+  const seed = assertAllowedSeed(seedUrl);
+  const expectedSourceHost = normalizeHost(seed.hostname);
+
+  if (normalizeHost(sourceHost) !== expectedSourceHost) {
+    throw new Error(`Source host does not match seed host: ${sourceHost}`);
+  }
+
+  const sourcePageHost = normalizeHost(new URL(sourcePageUrl).hostname);
+  if (sourcePageHost !== expectedSourceHost) {
+    throw new Error(`Source page host is not allowlisted: ${sourcePageHost}`);
+  }
+
+  if (!isAllowedImageHost(expectedSourceHost, imageUrl)) {
+    throw new Error(`Image host is not in CDN allowlist for ${expectedSourceHost}`);
   }
 };

@@ -937,4 +937,38 @@ describe('remote corpus import', () => {
       /http\(s\) URL for source page URL/,
     );
   });
+
+  it('rejects staged manifests with source page hosts outside the seed allowlist', async () => {
+    const stageDir = await mkdtemp(path.join(tmpdir(), 'ironqr-corpus-unsafe-'));
+    const safeDir = path.join(stageDir, 'stage-deadbeefcafef00d');
+    await mkdir(safeDir, { recursive: true });
+    await writeFile(
+      path.join(safeDir, 'manifest.json'),
+      JSON.stringify({
+        version: 1,
+        id: 'stage-deadbeefcafef00d',
+        suggestedLabel: 'qr-positive',
+        imageFileName: 'image.png',
+        sourcePageUrl: 'http://127.0.0.1/internal',
+        imageUrl: 'https://cdn.pixabay.com/first.png',
+        seedUrl: 'https://pixabay.com/',
+        sourceHost: 'pixabay.com',
+        fetchedAt: '2026-04-10T00:00:00.000Z',
+        mediaType: 'image/webp',
+        byteLength: 0,
+        sha256: '00',
+        sourceSha256: '11',
+        sourceMediaType: 'image/png',
+        sourceByteLength: 0,
+        width: 0,
+        height: 0,
+        review: { status: 'pending' },
+      }),
+      'utf8',
+    );
+
+    await expect(readStagedRemoteAsset(stageDir, 'stage-deadbeefcafef00d')).rejects.toThrow(
+      /Source page host is not allowlisted/,
+    );
+  });
 });

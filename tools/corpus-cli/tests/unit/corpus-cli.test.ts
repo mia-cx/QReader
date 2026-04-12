@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'bun:test';
+import { mkdir, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import sharp from 'sharp';
 import { parseArgv } from '../../src/args.js';
 import {
   buildFilteredCliCommand,
@@ -7,8 +11,12 @@ import {
   getUsageText,
   resolveRepoRootFromModuleUrl,
 } from '../../src/cli.js';
+import { runImportCommand } from '../../src/commands/import.js';
 import { promptManualGroundTruth } from '../../src/commands/shared.js';
 import { getCorpusCliConfigPath } from '../../src/config.js';
+import type { AppContext } from '../../src/context.js';
+import { writeStagedRemoteAsset } from '../../src/import/remote.js';
+import { readCorpusManifest } from '../../src/manifest.js';
 import type { CliUi, SelectValue } from '../../src/ui.js';
 
 describe('corpus cli helpers', () => {
@@ -199,5 +207,104 @@ describe('corpus cli helpers', () => {
       Object.defineProperty(process.stdin, 'isTTY', { value: stdinTty, configurable: true });
       Object.defineProperty(process.stdout, 'isTTY', { value: stdoutTty, configurable: true });
     }
+  });
+
+  it('staged import requires explicit confirmed license instead of auto-accepting hint', async () => {
+    const repoRoot = await mkdtemp(path.join(tmpdir(), 'ironqr-import-cli-'));
+    const stageDir = path.join(repoRoot, 'corpus', 'staging', 'manual-run');
+    await mkdir(path.join(repoRoot, 'corpus'), { recursive: true });
+    await mkdir(stageDir, { recursive: true });
+
+    const imageBuffer = await sharp({
+      create: {
+        width: 2,
+        height: 2,
+        channels: 4,
+        background: { r: 255, g: 255, b: 255, alpha: 1 },
+      },
+    })
+      .webp()
+      .toBuffer();
+
+    await writeStagedRemoteAsset(
+      stageDir,
+      {
+        version: 1,
+        id: 'stage-deadbeefcafef00d',
+        suggestedLabel: 'qr-positive',
+        imageFileName: 'image.webp',
+        sourcePageUrl: 'https://pixabay.com/photos/example/',
+        imageUrl: 'https://cdn.pixabay.com/example.webp',
+        seedUrl: 'https://pixabay.com/images/search/qr%20code/',
+        sourceHost: 'pixabay.com',
+        fetchedAt: '2026-04-10T00:00:00.000Z',
+        mediaType: 'image/webp',
+        byteLength: imageBuffer.byteLength,
+        sha256: '00',
+        sourceSha256: '11',
+        sourceMediaType: 'image/png',
+        sourceByteLength: imageBuffer.byteLength,
+        width: 2,
+        height: 2,
+        bestEffortLicense: 'Pixabay License',
+        review: { status: 'pending' },
+        groundTruth: { qrCount: 1, codes: [{ text: 'https://example.com' }] },
+      },
+      new Uint8Array(imageBuffer),
+    );
+
+    const prompts: Array<Parameters<CliUi['text']>[0]> = [];
+    const context: AppContext = {
+      repoRoot,
+      ui: {
+        verbose: false,
+        intro() {},
+        outro() {},
+        cancel() {},
+        info() {},
+        warn() {},
+        debug() {},
+        async text(options) {
+          prompts.push(options);
+          return 'CC0';
+        },
+        async confirm() {
+          return true;
+        },
+        async select<T extends SelectValue>(): Promise<T> {
+          throw new Error('not used');
+        },
+        async spin<T>(_message: string, task: () => Promise<T>): Promise<T> {
+          return task();
+        },
+      },
+      ensureImageViewer: async () => {},
+      openImage: async () => {},
+      openExternal: async () => {},
+      detectGithubLogin: () => undefined,
+    };
+
+    await runImportCommand(
+      context,
+      {
+        command: 'import',
+        positionals: [stageDir],
+        options: { review: 'approved', reviewer: 'mia' },
+        help: false,
+        verbose: false,
+      },
+      stageDir,
+    );
+
+    const licensePrompt = prompts.find((prompt) =>
+      prompt.message.startsWith('Confirmed license for stage-deadbeefcafef00d'),
+    );
+    expect(licensePrompt).toBeDefined();
+    expect(licensePrompt?.initialValue).toBeUndefined();
+    expect(licensePrompt?.placeholder).toBe('Pixabay License');
+
+    const manifest = await readCorpusManifest(repoRoot);
+    expect(manifest.assets[0]?.licenseReview?.confirmedLicense).toBe('CC0');
+    expect(manifest.assets[0]?.licenseReview?.bestEffortLicense).toBe('Pixabay License');
   });
 });

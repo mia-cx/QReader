@@ -236,7 +236,7 @@ const fillMissingStagedMetadata = async (
     if (!confirmedLicense) {
       confirmedLicense = await context.ui.text({
         message: `Confirmed license for ${asset.id}`,
-        ...(asset.bestEffortLicense ? { initialValue: asset.bestEffortLicense } : {}),
+        ...(asset.bestEffortLicense ? { placeholder: asset.bestEffortLicense } : {}),
         validate: (value) =>
           value.trim().length > 0 ? undefined : 'Confirmed license is required',
       });

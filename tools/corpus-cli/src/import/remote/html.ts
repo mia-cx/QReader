@@ -42,49 +42,106 @@ const matchAllGroups = (pattern: RegExp, value: string, groupIndex = 1): string[
   return matches;
 };
 
+// ── License detection helpers ────────────────────────────────────────────────
+
+const extractOgLicense = (html: string): string | null => {
+  const m =
+    /<meta\b[^>]*(?:property|name)=["']og:license["'][^>]*content=["']([^"']+)["'][^>]*>/i.exec(
+      html,
+    ) ??
+    /<meta\b[^>]*content=["']([^"']+)["'][^>]*(?:property|name)=["']og:license["'][^>]*>/i.exec(
+      html,
+    );
+  return m?.[1]?.trim() ?? null;
+};
+
+const extractCcUrl = (html: string): string | null => {
+  // CC license URL like https://creativecommons.org/licenses/by-sa/4.0/
+  const m = /https:\/\/creativecommons\.org\/licenses\/([a-z-]+)\/([0-9.]+)/i.exec(html);
+  if (m?.[1] && m[2]) return `CC ${m[1].toUpperCase()} ${m[2]}`;
+  if (/creativecommons\.org\/publicdomain\/zero/i.test(html)) return 'CC0 1.0';
+  return null;
+};
+
+/**
+ * For Wikimedia Commons file pages the license template renders a
+ * <span class="licensetpl_short"> element with the canonical short name
+ * (e.g. "CC BY-SA 4.0", "Public domain"). This is the most reliable signal.
+ */
+const detectCommonsLicense = (
+  html: string,
+): { bestEffortLicense?: string; licenseEvidenceText?: string } => {
+  const shortSpan = /<span[^>]*class="[^"]*licensetpl_short[^"]*"[^>]*>([^<]+)<\/span>/i.exec(html);
+  if (shortSpan?.[1]) {
+    return { bestEffortLicense: shortSpan[1].trim(), licenseEvidenceText: shortSpan[0] };
+  }
+
+  const ogLicense = extractOgLicense(html);
+  if (ogLicense) return { bestEffortLicense: ogLicense, licenseEvidenceText: ogLicense };
+
+  const ccUrl = extractCcUrl(html);
+  if (ccUrl) return { bestEffortLicense: ccUrl, licenseEvidenceText: ccUrl };
+
+  if (/public.?domain/i.test(html)) {
+    const evidence = /public.?domain[^<]{0,80}/i.exec(html)?.[0]?.trim();
+    return {
+      bestEffortLicense: 'Public domain',
+      ...(evidence ? { licenseEvidenceText: evidence } : {}),
+    };
+  }
+
+  return { bestEffortLicense: 'Unknown (verify Commons file page)' };
+};
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
 export const detectBestEffortLicense = (
   host: string,
   html: string,
 ): { bestEffortLicense?: string; licenseEvidenceText?: string } => {
-  const lowerHtml = html.toLowerCase();
-  const evidenceMatch =
-    /(public domain|cc0|pixabay license|pexels license|royalty free|free download|unsplash license)/i.exec(
-      html,
-    )?.[0];
+  if (host === 'commons.wikimedia.org') {
+    return detectCommonsLicense(html);
+  }
 
-  if (host === 'commons.wikimedia.org' || host === 'pdimagearchive.org') {
-    return {
-      bestEffortLicense: 'Public domain (host allowlisted; verify page)',
-      ...(evidenceMatch ? { licenseEvidenceText: evidenceMatch } : {}),
-    };
-  }
-  if (lowerHtml.includes('pixabay license')) {
-    return {
-      bestEffortLicense: 'Pixabay License',
-      ...(evidenceMatch ? { licenseEvidenceText: evidenceMatch } : {}),
-    };
-  }
-  if (lowerHtml.includes('pexels license')) {
-    return {
-      bestEffortLicense: 'Pexels License',
-      ...(evidenceMatch ? { licenseEvidenceText: evidenceMatch } : {}),
-    };
-  }
-  if (lowerHtml.includes('royalty free') || lowerHtml.includes('free download')) {
-    return {
-      bestEffortLicense: 'Royalty free / free download (verify page)',
-      ...(evidenceMatch ? { licenseEvidenceText: evidenceMatch } : {}),
-    };
+  // Try og:license meta tag first — most reliable when present
+  const ogLicense = extractOgLicense(html);
+  if (ogLicense) return { bestEffortLicense: ogLicense, licenseEvidenceText: ogLicense };
+
+  // CC license URL present anywhere on the page
+  const ccUrl = extractCcUrl(html);
+  if (ccUrl) return { bestEffortLicense: ccUrl, licenseEvidenceText: ccUrl };
+
+  // Host-specific known licenses
+  if (host === 'pdimagearchive.org') {
+    return { bestEffortLicense: 'Public domain (verify page)' };
   }
   if (host === 'unsplash.com') {
+    return { bestEffortLicense: 'Unsplash License (free to use, no attribution required)' };
+  }
+
+  // Keyword fallbacks — match the text surrounding the keyword for evidence
+  const lowerHtml = html.toLowerCase();
+  if (lowerHtml.includes('pixabay license')) {
+    return { bestEffortLicense: 'Pixabay License', licenseEvidenceText: 'Pixabay License' };
+  }
+  if (lowerHtml.includes('pexels license')) {
+    return { bestEffortLicense: 'Pexels License', licenseEvidenceText: 'Pexels License' };
+  }
+  if (/\bcc0\b/i.test(html) || lowerHtml.includes('public domain')) {
+    const evidence = /(?:cc0|public domain)[^<]{0,80}/i.exec(html)?.[0]?.trim();
     return {
-      bestEffortLicense: 'Unsplash / free to use (verify page)',
-      ...(evidenceMatch ? { licenseEvidenceText: evidenceMatch } : {}),
+      bestEffortLicense: 'CC0 / Public domain',
+      ...(evidence ? { licenseEvidenceText: evidence } : {}),
     };
   }
-  if (evidenceMatch) {
-    return { licenseEvidenceText: evidenceMatch };
+  if (lowerHtml.includes('royalty-free') || lowerHtml.includes('royalty free')) {
+    const evidence = /royalty.free[^<]{0,80}/i.exec(html)?.[0]?.trim();
+    return {
+      bestEffortLicense: 'Royalty free (verify page)',
+      ...(evidence ? { licenseEvidenceText: evidence } : {}),
+    };
   }
+
   return {};
 };
 

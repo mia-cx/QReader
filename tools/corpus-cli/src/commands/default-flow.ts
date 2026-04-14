@@ -109,6 +109,7 @@ const runStreamingRound = async (
     seedUrls,
     label: 'qr-positive',
     limit,
+    fetchDelayMs: 1000,
     log: (line) => {
       if (context.ui.verbose) {
         context.ui.debug(line);

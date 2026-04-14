@@ -60,6 +60,7 @@ export const runScrapeCommand = async (
       seedUrls: inputs.seedUrls,
       label: 'qr-positive',
       ...(inputs.limit ? { limit: inputs.limit } : {}),
+      fetchDelayMs: 1000,
       log: (line) => {
         if (context.ui.verbose) {
           context.ui.debug(line);

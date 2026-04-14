@@ -6,6 +6,7 @@ import type { SourcePage } from './page.js';
 interface ResolveSourcePagesEnv {
   readonly fetchImpl: FetchLike;
   readonly log: (line: string) => void;
+  readonly fetchDelayMs: number;
 }
 
 interface ResolveSourcePagesState {
@@ -52,6 +53,7 @@ export const resolveSourcePagesEffect = (
         continue;
       }
       env.log(`Fetching page ${pageLink}`);
+      await new Promise((r) => setTimeout(r, env.fetchDelayMs));
       let nextPage: SourcePage | null;
       try {
         nextPage = await Effect.runPromise(fetchText(pageLink, env.fetchImpl, true));

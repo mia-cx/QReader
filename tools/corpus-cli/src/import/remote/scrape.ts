@@ -98,6 +98,7 @@ const scrapeRemoteAssetsLoopEffect = (
     const seenImageUrls = new Set<string>();
     const limit = options.limit ?? 100;
     const log = options.log ?? (() => {});
+    const fetchDelayMs = options.fetchDelayMs ?? 0;
     const seenSourceSha256 = await Effect.runPromise(
       collectExistingStagedSourceHashesEffect(options.repoRoot),
     );
@@ -128,7 +129,11 @@ const scrapeRemoteAssetsLoopEffect = (
         visitedSourcePageUrls: seenSourcePageUrls,
       };
 
-      for await (const page of resolveSourcePagesEffect(seedPage, { fetchImpl, log }, state)) {
+      for await (const page of resolveSourcePagesEffect(
+        seedPage,
+        { fetchImpl, log, fetchDelayMs },
+        state,
+      )) {
         resolvedSourcePages += 1;
         if (assets.length >= limit) {
           break;
@@ -153,6 +158,7 @@ const scrapeRemoteAssetsLoopEffect = (
           }
 
           log(`Fetching image ${imageUrl}`);
+          await new Promise((r) => setTimeout(r, fetchDelayMs));
 
           let asset: StagedRemoteAsset | null;
           try {

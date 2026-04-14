@@ -134,6 +134,8 @@ export interface ImportRemoteAssetOptions {
   readonly provenanceNotes?: string;
   /** Optional logger for skipped candidates and fetch failures. */
   readonly log?: (line: string) => void;
+  /** Delay in ms between page and image fetches to avoid rate limiting. Defaults to 1000. */
+  readonly fetchDelayMs?: number;
 }
 
 export interface ImportRemoteAssetResult {

@@ -9,10 +9,20 @@ const MAX_HTML_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 50 * 1024 * 1024;
 const MAX_SAME_HOST_REDIRECTS = 5;
 
-// Identify as a browser so sites that block bare fetch() don't 403 us.
+// Send a browser-like request so sites that gate on UA/headers don't 403 us.
 // Corpus acquisition is manual/interactive, not mass automated scraping.
-const USER_AGENT =
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+const BROWSER_HEADERS: Record<string, string> = {
+  'user-agent':
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'accept-language': 'en-US,en;q=0.9',
+  'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+  'sec-ch-ua-mobile': '?0',
+  'sec-ch-ua-platform': '"macOS"',
+  'sec-fetch-dest': 'document',
+  'sec-fetch-mode': 'navigate',
+  'sec-fetch-site': 'none',
+  'upgrade-insecure-requests': '1',
+};
 
 const readLimitedBody = (response: Response, maxBytes: number, label: string) => {
   return tryPromise(async () => {
@@ -75,7 +85,7 @@ export const fetchFollowingSameHost = (
     let currentUrl = url;
     for (let hop = 0; hop <= MAX_SAME_HOST_REDIRECTS; hop += 1) {
       const response = await fetchImpl(currentUrl, {
-        headers: { accept, 'user-agent': USER_AGENT },
+        headers: { ...BROWSER_HEADERS, accept },
         redirect: 'manual',
       });
 

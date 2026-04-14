@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rm, rmdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Effect } from 'effect';
 import * as S from 'effect/Schema';
@@ -157,6 +157,27 @@ export const readStagedRemoteAssetsEffect = (
 
 export const readStagedRemoteAssets = (stageDir: string): Promise<readonly StagedRemoteAsset[]> => {
   return Effect.runPromise(readStagedRemoteAssetsEffect(stageDir));
+};
+
+export const removeStagedAssetDirEffect = (stageDir: string, assetId: string) => {
+  return tryPromise(async () => {
+    assertSafeSlug(assetId, 'asset id');
+    await rm(getAssetDir(stageDir, assetId), { recursive: true, force: true });
+  });
+};
+
+/**
+ * Removes the run directory if it is now empty (all assets processed).
+ * Silently ignores non-empty or already-gone dirs.
+ */
+export const removeRunDirIfEmptyEffect = (stageDir: string) => {
+  return tryPromise(async () => {
+    try {
+      await rmdir(stageDir);
+    } catch {
+      // not empty or already gone — fine
+    }
+  });
 };
 
 export const collectExistingStagedSourceHashesEffect = (repoRoot: string) => {

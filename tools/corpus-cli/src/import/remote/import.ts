@@ -18,6 +18,8 @@ import { tryPromise } from './effect.js';
 import {
   getAssetImagePath,
   readStagedRemoteAssetsEffect,
+  removeRunDirIfEmptyEffect,
+  removeStagedAssetDirEffect,
   updateStagedRemoteAssetEffect,
 } from './stage-store.js';
 
@@ -85,6 +87,7 @@ const importStagedRemoteAssetsEffect = (options: ImportStagedRemoteAssetsOptions
             rejectedAt: stagedAsset.review.reviewedAt ?? new Date().toISOString(),
           }),
         );
+        yield* removeStagedAssetDirEffect(options.stageDir, stagedAsset.id);
         continue;
       }
 
@@ -140,14 +143,13 @@ const importStagedRemoteAssetsEffect = (options: ImportStagedRemoteAssetsOptions
         imported.push(result.asset);
       }
 
-      yield* updateStagedRemoteAssetEffect(options.stageDir, {
-        ...approvedAsset,
-        importedAssetId: result.asset.id,
-      });
+      // Corpus manifest and asset file written — staged dir is now redundant.
+      yield* removeStagedAssetDirEffect(options.stageDir, stagedAsset.id);
     }
 
     const nextManifest = { version: 1 as const, assets };
     yield* tryPromise(() => writeCorpusManifest(options.repoRoot, nextManifest));
+    yield* removeRunDirIfEmptyEffect(options.stageDir);
 
     return {
       imported,

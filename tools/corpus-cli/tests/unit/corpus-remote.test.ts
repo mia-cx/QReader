@@ -576,8 +576,8 @@ describe('remote corpus import', () => {
       acceptedAsTruth: true,
     });
 
-    const persistedStage = await readStagedRemoteAsset(staged.stageDir, asset.id);
-    expect(persistedStage.importedAssetId).toBe(imported?.id);
+    // Staged dir is removed after import — verify the corpus manifest instead.
+    expect(imported?.sourceSha256).toBe(asset.sourceSha256);
   });
 
   it('rejects dedup imports that try to rewrite canonical truth metadata', async () => {
@@ -618,6 +618,10 @@ describe('remote corpus import', () => {
       },
     });
 
+    // Save bytes before import (staged dir is deleted during import).
+    const sourcePath = path.join(firstStage.stageDir, firstAsset.id, firstAsset.imageFileName);
+    const reusedBytes = new Uint8Array(await readFile(sourcePath));
+
     await importStagedRemoteAssets({
       repoRoot,
       stageDir: firstStage.stageDir,
@@ -625,8 +629,6 @@ describe('remote corpus import', () => {
 
     const secondStageDir = path.join(repoRoot, 'corpus', 'staging', 'manual-run-2');
     await mkdir(secondStageDir, { recursive: true });
-    const sourcePath = path.join(firstStage.stageDir, firstAsset.id, firstAsset.imageFileName);
-    const reusedBytes = new Uint8Array(await readFile(sourcePath));
     await writeStagedRemoteAsset(
       secondStageDir,
       {
@@ -703,6 +705,10 @@ describe('remote corpus import', () => {
       },
     });
 
+    // Save bytes before import (staged dir is deleted during import).
+    const sourcePath = path.join(firstStage.stageDir, firstAsset.id, firstAsset.imageFileName);
+    const reusedBytes = new Uint8Array(await readFile(sourcePath));
+
     await importStagedRemoteAssets({
       repoRoot,
       stageDir: firstStage.stageDir,
@@ -710,8 +716,6 @@ describe('remote corpus import', () => {
 
     const secondStageDir = path.join(repoRoot, 'corpus', 'staging', 'manual-run-2');
     await mkdir(secondStageDir, { recursive: true });
-    const sourcePath = path.join(firstStage.stageDir, firstAsset.id, firstAsset.imageFileName);
-    const reusedBytes = new Uint8Array(await readFile(sourcePath));
     await writeStagedRemoteAsset(
       secondStageDir,
       {

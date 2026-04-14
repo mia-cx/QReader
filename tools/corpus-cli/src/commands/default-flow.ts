@@ -67,7 +67,7 @@ const resolveSeedUrls = async (
   return splitUrlInput(
     await context.ui.text({
       message: 'Seed URL(s), separated by spaces or commas',
-      placeholder: 'https://pixabay.com/images/search/qr%20code/',
+      placeholder: 'https://commons.wikimedia.org/w/index.php?search=QR+Code&title=Special%3AMediaSearch&type=image',
       validate: (value) =>
         splitUrlInput(value).length > 0 ? undefined : 'At least one URL is required',
     }),

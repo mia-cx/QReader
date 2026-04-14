@@ -149,7 +149,10 @@ export const generateAttributionMd = (entries: readonly RealWorldBenchmarkEntry[
   });
 
   if (needsAttribution.length === 0) {
-    return '# Attribution\n\nAll images in this fixture are in the public domain or CC0.\n';
+    const hasUnknownLicense = entries.some((e) => !e.confirmedLicense);
+    return hasUnknownLicense
+      ? '# Attribution\n\nLicensing not confirmed for all assets. Verify before distributing.\n'
+      : '# Attribution\n\nAll images in this fixture are in the public domain or CC0.\n';
   }
 
   const lines: string[] = [

@@ -42,7 +42,6 @@ interface ReviewSummary {
   readonly approved: number;
   readonly rejected: number;
   readonly skipped: number;
-  readonly quitEarly: boolean;
 }
 
 const logAssetMetadata = (
@@ -187,7 +186,7 @@ export const reviewStagedAssets = async (
     approved += 1;
   }
 
-  return { approved, rejected, skipped, quitEarly: false };
+  return { approved, rejected, skipped };
 };
 
 const toAutoScan = (result: ScanAssetResult, acceptedAsTruth?: boolean): AutoScan => {

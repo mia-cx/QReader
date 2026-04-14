@@ -29,9 +29,9 @@ Remote scrape staging lives under `corpus/staging/`:
 - `corpus/staging/<run-id>/<asset-id>/image.*` — raw scraped image for manual review
 - `corpus/staging/<run-id>/<asset-id>/manifest.json` — per-image source metadata
 
-Both `corpus/data/` and `corpus/staging/` are gitignored. The code and docs in
-`corpus/` are tracked; the imported dataset is local working data unless the
-team explicitly chooses to version specific approved fixtures later.
+`corpus/staging/` is gitignored. `corpus/data/` (manifest, assets, rejections)
+is tracked in the repo so the seed corpus ships out of the box and CI can
+exercise real-world images without a local scrape.
 
 ## Lawful sourcing and review expectations
 

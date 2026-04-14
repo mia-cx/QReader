@@ -100,7 +100,7 @@ export const runReviewCommand = async (
   });
 
   context.ui.info(
-    `Review complete: ${summary.approved} approved, ${summary.rejected} rejected, ${summary.skipped} skipped${summary.quitEarly ? ' (quit early)' : ''}`,
+    `Review complete: ${summary.approved} approved, ${summary.rejected} rejected, ${summary.skipped} skipped`,
   );
   context.ui.info(`Next: ${buildFilteredCliCommand('import', [stageDir])}`);
 

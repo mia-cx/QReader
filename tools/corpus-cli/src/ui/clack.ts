@@ -18,14 +18,31 @@ const unwrap = <T>(value: T | symbol): T => {
   return value as T;
 };
 
-const clearRenderedLines = (lineCount: number): void => {
-  if (lineCount <= 0) {
+/** Count how many physical terminal rows a set of logical lines occupies. */
+const physicalRowCount = (lines: readonly string[], columns: number): number => {
+  let rows = 0;
+  for (const line of lines) {
+    // Each logical line takes at least 1 row; long lines wrap to ceil(width / columns).
+    const width = stripAnsi(line).length;
+    rows += width === 0 ? 1 : Math.ceil(width / columns);
+  }
+  return rows;
+};
+
+// Strip ANSI escape sequences for accurate visible-width measurement.
+const stripAnsi = (text: string): string => {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping ANSI escapes requires matching control chars
+  return text.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
+};
+
+const clearRenderedRows = (rowCount: number): void => {
+  if (rowCount <= 0) {
     return;
   }
 
-  for (let index = 0; index < lineCount; index += 1) {
+  for (let index = 0; index < rowCount; index += 1) {
     process.stdout.write('\r\x1b[2K');
-    if (index < lineCount - 1) {
+    if (index < rowCount - 1) {
       process.stdout.write('\x1b[1A');
     }
   }
@@ -69,12 +86,19 @@ const promptMultilineText = async (options: TextPromptOptions): Promise<string> 
   process.stdin.setRawMode(true);
 
   let value = options.initialValue ?? '';
-  let renderedLineCount = 0;
+  let renderedRowCount = 0;
   let submitArmed = false;
   let status = 'Esc then Enter submit · Enter newline';
+  const undoStack: string[] = [];
+  const redoStack: string[] = [];
+
+  const pushUndo = (): void => {
+    undoStack.push(value);
+    redoStack.length = 0;
+  };
 
   const render = (): void => {
-    clearRenderedLines(renderedLineCount);
+    clearRenderedRows(renderedRowCount);
 
     const lines = value.length > 0 ? value.split('\n') : [''];
     const rendered = [
@@ -85,7 +109,7 @@ const promptMultilineText = async (options: TextPromptOptions): Promise<string> 
     ];
 
     writeRenderedLines(rendered);
-    renderedLineCount = rendered.length;
+    renderedRowCount = physicalRowCount(rendered, process.stdout.columns || 80);
   };
 
   const renderSubmittedValue = (): void => {
@@ -99,8 +123,6 @@ const promptMultilineText = async (options: TextPromptOptions): Promise<string> 
     writeRenderedLines(rendered, true);
   };
 
-  render();
-
   return new Promise<string>((resolve, reject) => {
     const cleanup = (): void => {
       process.stdin.removeListener('keypress', onKeypress);
@@ -108,7 +130,7 @@ const promptMultilineText = async (options: TextPromptOptions): Promise<string> 
       if (wasPaused) {
         process.stdin.pause();
       }
-      clearRenderedLines(renderedLineCount);
+      clearRenderedRows(renderedRowCount);
     };
 
     const finish = (): void => {
@@ -148,13 +170,61 @@ const promptMultilineText = async (options: TextPromptOptions): Promise<string> 
           return;
         }
 
+        pushUndo();
         value += '\n';
         status = 'Esc then Enter submit · Enter newline';
         render();
         return;
       }
 
+      // Undo: ctrl+z
+      if (key.ctrl && key.name === 'z') {
+        if (undoStack.length > 0) {
+          redoStack.push(value);
+          value = undoStack.pop()!;
+        }
+        submitArmed = false;
+        status = 'Esc then Enter submit · Enter newline';
+        render();
+        return;
+      }
+
+      // Redo: ctrl+y or ctrl+shift+z (shift+z reports as key.name='z' with key.shift)
+      if ((key.ctrl && key.name === 'y') || (key.ctrl && key.shift && key.name === 'z')) {
+        if (redoStack.length > 0) {
+          undoStack.push(value);
+          value = redoStack.pop()!;
+        }
+        submitArmed = false;
+        status = 'Esc then Enter submit · Enter newline';
+        render();
+        return;
+      }
+
+      // Delete word backward: option+backspace (meta+backspace) or ctrl+w
+      if ((key.meta && key.name === 'backspace') || (key.ctrl && key.name === 'w')) {
+        pushUndo();
+        submitArmed = false;
+        // Remove trailing whitespace, then non-whitespace back to a boundary
+        value = value.replace(/\S*\s*$/, '');
+        status = 'Esc then Enter submit · Enter newline';
+        render();
+        return;
+      }
+
+      // Delete to start of line: ctrl+u
+      if (key.ctrl && key.name === 'u') {
+        pushUndo();
+        submitArmed = false;
+        const lastNewline = value.lastIndexOf('\n');
+        value = lastNewline >= 0 ? value.slice(0, lastNewline) : '';
+        status = 'Esc then Enter submit · Enter newline';
+        render();
+        return;
+      }
+
       if (key.name === 'backspace') {
+        pushUndo();
         submitArmed = false;
         value = value.slice(0, -1);
         status = 'Esc then Enter submit · Enter newline';
@@ -163,6 +233,7 @@ const promptMultilineText = async (options: TextPromptOptions): Promise<string> 
       }
 
       if (input && !key.ctrl && !key.meta) {
+        pushUndo();
         submitArmed = false;
         value += input.replace(/\r\n?/g, '\n');
         status = 'Esc then Enter submit · Enter newline';
@@ -171,6 +242,7 @@ const promptMultilineText = async (options: TextPromptOptions): Promise<string> 
     };
 
     process.stdin.on('keypress', onKeypress);
+    render();
   });
 };
 

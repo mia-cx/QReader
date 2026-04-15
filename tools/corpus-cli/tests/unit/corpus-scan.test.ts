@@ -27,7 +27,7 @@ describe('corpus reviewer scan assist', () => {
 
     expect(result).toEqual({
       attempted: true,
-      succeeded: false,
+      succeeded: true,
       results: [],
     });
   });

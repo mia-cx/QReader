@@ -2,7 +2,7 @@ import { Effect } from 'effect';
 import { tryPromise } from './effect.js';
 import type { SourcePage } from './page.js';
 import { normalizeHost } from './policy.js';
-import { htmlToText } from './text.js';
+import { htmlToText, stripAnsi } from './text.js';
 
 /** Minimal subset of the Fetch API required by scrape utilities; compatible with `globalThis.fetch`. */
 export type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>;
@@ -215,7 +215,7 @@ export const fetchCommonsFileMeta = (
 
     const license = extmeta.LicenseShortName?.value?.trim() || undefined;
     const artistRaw = extmeta.Artist?.value;
-    const attribution = artistRaw ? htmlToText(artistRaw) || undefined : undefined;
+    const attribution = artistRaw ? stripAnsi(htmlToText(artistRaw)) || undefined : undefined;
 
     return {
       ...(license ? { license } : {}),
@@ -305,7 +305,7 @@ export const fetchCommonsSearchBatch = (
       .filter((entry): entry is { title: string } => typeof entry.title === 'string')
       .map((entry) => ({
         title: entry.title,
-        pageUrl: `https://commons.wikimedia.org/wiki/${entry.title.replace(/ /g, '_')}`,
+        pageUrl: `https://commons.wikimedia.org/wiki/${encodeURIComponent(entry.title.replace(/ /g, '_'))}`,
       }));
 
     return {
@@ -317,12 +317,13 @@ export const fetchCommonsSearchBatch = (
 
 /**
  * Resolves file page URLs from a Commons search seed URL by querying the API.
- * Calls `onPage` for each detail page fetched, up to `limit` pages.
+ * Calls `onPage` for each detail page. The caller controls termination via
+ * the error channel (e.g. a tagged `LimitReached` fail) — this function
+ * pages through results until the API is exhausted or `onPage` signals stop.
  */
 export const resolveCommonsSearchPages = <E>(
   seedUrl: string,
   fetchImpl: FetchLike,
-  limit: number,
   fetchDelayMs: number,
   log: (line: string) => void,
   visitedSourcePageUrls: ReadonlySet<string>,
@@ -338,13 +339,11 @@ export const resolveCommonsSearchPages = <E>(
     let offset = 0;
     let resolved = 0;
 
-    while (resolved < limit) {
+    for (;;) {
       const batch = yield* fetchCommonsSearchBatch(query, fetchImpl, offset);
       if (batch.results.length === 0) break;
 
       for (const result of batch.results) {
-        if (resolved >= limit) break;
-
         if (visitedSourcePageUrls.has(result.pageUrl)) {
           log(`Skipped ${result.pageUrl}: visited in a previous scrape`);
           continue;

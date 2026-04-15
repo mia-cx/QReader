@@ -202,7 +202,7 @@ export const removeRunDirIfEmptyEffect = (stageDir: string) => {
 };
 
 /** Normalize a URL for dedup comparison (decode percent-encoding so File%3A matches File:). */
-const normalizeUrlForDedup = (url: string): string => {
+export const normalizeUrlForDedup = (url: string): string => {
   try {
     return decodeURIComponent(url);
   } catch {

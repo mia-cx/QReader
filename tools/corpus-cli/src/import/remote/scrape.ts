@@ -30,6 +30,7 @@ import { resolveSourcePages } from './resolve.js';
 import {
   collectExistingScrapeStateEffect,
   ensureStageDir,
+  normalizeUrlForDedup,
   readStagedRemoteAssets,
   writeStagedRemoteAssetEffect,
 } from './stage-store.js';
@@ -137,8 +138,9 @@ const scrapeRemoteAssetsLoopEffect = (
     const scrapeProgress = yield* tryPromise(() => readScrapeProgress(options.repoRoot));
     // Merge scrape progress URLs with manifest-derived URLs so we skip
     // pages whose images are already in the corpus without re-fetching.
+    // Normalize all URLs so percent-encoded and decoded forms match.
     const seenSourcePageUrls = new Set<string>([
-      ...scrapeProgress.visitedSourcePageUrls,
+      ...scrapeProgress.visitedSourcePageUrls.map(normalizeUrlForDedup),
       ...manifestPageUrls,
     ]);
 
@@ -179,7 +181,7 @@ const scrapeRemoteAssetsLoopEffect = (
 
           // Mark the source page as visited so the next scrape session skips
           // fetching it entirely rather than re-deduping all its images.
-          seenSourcePageUrls.add(page.url);
+          seenSourcePageUrls.add(normalizeUrlForDedup(page.url));
           yield* tryPromise(() => appendVisitedSourcePage(options.repoRoot, page.url));
         });
 
@@ -195,7 +197,6 @@ const scrapeRemoteAssetsLoopEffect = (
         yield* resolveCommonsSearchPages(
           seed.toString(),
           fetchImpl,
-          limit - assets.length,
           fetchDelayMs,
           log,
           seenSourcePageUrls,

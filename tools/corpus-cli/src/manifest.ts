@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import * as S from 'effect/Schema';
 import { isEnoentError } from './fs-error.js';
+import { normalizeUrlForDedup } from './import/remote/stage-store.js';
 import {
   type CorpusManifest,
   CorpusManifestSchema,
@@ -167,10 +168,12 @@ export const readScrapeProgress = async (repoRoot: string): Promise<ScrapeProgre
 export const appendVisitedSourcePage = async (repoRoot: string, url: string): Promise<void> => {
   await ensureCorpusLayout(repoRoot);
   const progress = await readScrapeProgress(repoRoot);
-  if (progress.visitedSourcePageUrls.includes(url)) return;
+  const normalizedUrl = normalizeUrlForDedup(url);
+  const existingNormalized = progress.visitedSourcePageUrls.map(normalizeUrlForDedup);
+  if (existingNormalized.includes(normalizedUrl)) return;
   const updated: ScrapeProgress = {
     version: MAJOR_VERSION,
-    visitedSourcePageUrls: [...progress.visitedSourcePageUrls, url],
+    visitedSourcePageUrls: [...progress.visitedSourcePageUrls, normalizedUrl],
   };
   await writeFile(
     getCorpusScrapeProgressPath(repoRoot),

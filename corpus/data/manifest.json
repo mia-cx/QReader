@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 0,
   "assets": [
     {
       "id": "asset-0fffc38f3274dfc5",
@@ -1423,6 +1423,54 @@
         "confirmedLicense": "CC0",
         "licenseVerifiedBy": "mia-riezebos",
         "licenseVerifiedAt": "2026-04-14T18:20:11.859Z"
+      }
+    },
+    {
+      "id": "asset-bd1e51041cfe8d77",
+      "label": "qr-positive",
+      "mediaType": "image/webp",
+      "fileExtension": ".webp",
+      "relativePath": "assets/asset-bd1e51041cfe8d77.webp",
+      "sha256": "0dc37d5561add368c25d633fbf7ca34fb93c962ba5d5fea762c2b5140ecb9816",
+      "byteLength": 55560,
+      "sourceSha256": "bd1e51041cfe8d77db27b88a5404f9c10943de53fcee14f963a4a99a6baf4d80",
+      "provenance": [
+        {
+          "kind": "remote",
+          "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:QR_code_of_Ala%27s_Linktree_page_20230225.jpg",
+          "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/QR_code_of_Ala%27s_Linktree_page_20230225.jpg/1280px-QR_code_of_Ala%27s_Linktree_page_20230225.jpg",
+          "fetchedAt": "2026-04-15T21:20:09.552Z",
+          "pageTitle": "File:QR code of Ala's Linktree page 20230225.jpg - Wikimedia Commons",
+          "attribution": "Solomon203",
+          "license": "CC BY-SA 4.0"
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "mia-riezebos",
+        "reviewedAt": "2026-04-15T21:26:49.849Z"
+      },
+      "groundTruth": {
+        "qrCount": 1,
+        "codes": [
+          {
+            "text": "https://me-qr.com/nyCgzemS",
+            "kind": "url"
+          }
+        ]
+      },
+      "autoScan": {
+        "attempted": true,
+        "succeeded": true,
+        "results": [],
+        "acceptedAsTruth": false
+      },
+      "licenseReview": {
+        "bestEffortLicense": "CC BY-SA 4.0",
+        "licenseEvidenceText": "Wikimedia API: CC BY-SA 4.0",
+        "confirmedLicense": "CC BY-SA 4.0",
+        "licenseVerifiedBy": "mia-riezebos",
+        "licenseVerifiedAt": "2026-04-15T21:26:49.849Z"
       }
     },
     {

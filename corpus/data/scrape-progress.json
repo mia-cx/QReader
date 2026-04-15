@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 0,
   "visitedSourcePageUrls": [
     "https://commons.wikimedia.org/wiki/File:QR_Code_Structure_number_fa_ar.svg",
     "https://commons.wikimedia.org/wiki/File:QR_Code_Structure_Example_2.svg",
@@ -40,6 +40,7 @@
     "https://commons.wikimedia.org/wiki/File:Lied_Rasmus_Halfdan_Rasmussen_-_QR-Code.jpg",
     "https://commons.wikimedia.org/wiki/File:QR_Code_wine_bottle_Saxony.jpg",
     "https://commons.wikimedia.org/wiki/File:Code_QR_Alabama_Blues.jpg",
-    "https://commons.wikimedia.org/wiki/File:Fire_extinguisher_box_with_emergency_instruction_and_QR_codes_for_Android_and_iOS_disaster_prevention_map_app.jpg"
+    "https://commons.wikimedia.org/wiki/File:Fire_extinguisher_box_with_emergency_instruction_and_QR_codes_for_Android_and_iOS_disaster_prevention_map_app.jpg",
+    "https://commons.wikimedia.org/wiki/File:QR_code_of_Ala%27s_Linktree_page_20230225.jpg"
   ]
 }

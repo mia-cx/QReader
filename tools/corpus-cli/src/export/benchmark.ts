@@ -2,6 +2,7 @@ import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import * as S from 'effect/Schema';
 import sharp from 'sharp';
+import { isEnoentError } from '../fs-error.js';
 import { classifyLicense } from '../license.js';
 import {
   ensureCorpusLayout,
@@ -131,7 +132,7 @@ export const readRealWorldBenchmarkFixture = async (
     const raw = await readFile(fixturePath, 'utf8');
     return decodeRealWorldBenchmarkCorpus(JSON.parse(raw));
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+    if (isEnoentError(error)) {
       return { positives: [], negatives: [] };
     }
 

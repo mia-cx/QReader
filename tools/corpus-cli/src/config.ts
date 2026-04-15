@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { isEnoentError } from './fs-error.js';
 
 export type ViewerPreference =
   | { readonly mode: 'default' }
@@ -32,7 +33,7 @@ export const readViewerPreference = async (
     const parsed = JSON.parse(raw) as { viewer?: unknown };
     return isViewerPreference(parsed.viewer) ? parsed.viewer : undefined;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+    if (isEnoentError(error)) {
       return undefined;
     }
 

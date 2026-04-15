@@ -316,6 +316,54 @@
       }
     },
     {
+      "id": "asset-2f575f29ad8fdafb",
+      "label": "qr-positive",
+      "mediaType": "image/webp",
+      "fileExtension": ".webp",
+      "relativePath": "assets/asset-2f575f29ad8fdafb.webp",
+      "sha256": "51463701a2fe811b0ce1d97961731c1bc9818d1b07ae334aa772c3e3ec072c3a",
+      "byteLength": 166922,
+      "sourceSha256": "2f575f29ad8fdafbe22d20194523ca4adb8259f6f585fb73d5816a79139584f6",
+      "provenance": [
+        {
+          "kind": "remote",
+          "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:QR-Code-Anwendung.jpg",
+          "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/QR-Code-Anwendung.jpg/1280px-QR-Code-Anwendung.jpg",
+          "fetchedAt": "2026-04-15T22:54:01.178Z",
+          "pageTitle": "File:QR-Code-Anwendung.jpg - Wikimedia Commons",
+          "attribution": "BangertNo",
+          "license": "CC BY-SA 3.0"
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "mia-riezebos",
+        "reviewedAt": "2026-04-15T23:02:14.179Z"
+      },
+      "groundTruth": {
+        "qrCount": 1,
+        "codes": [
+          {
+            "text": "http://www.qr-art.com/0001",
+            "kind": "url"
+          }
+        ]
+      },
+      "autoScan": {
+        "attempted": true,
+        "succeeded": true,
+        "results": [],
+        "acceptedAsTruth": false
+      },
+      "licenseReview": {
+        "bestEffortLicense": "CC BY-SA 3.0",
+        "licenseEvidenceText": "Wikimedia API: CC BY-SA 3.0",
+        "confirmedLicense": "CC BY-SA 3.0",
+        "licenseVerifiedBy": "mia-riezebos",
+        "licenseVerifiedAt": "2026-04-15T23:02:14.179Z"
+      }
+    },
+    {
       "id": "asset-37be75f9232345bc",
       "label": "qr-positive",
       "mediaType": "image/webp",
@@ -460,6 +508,54 @@
         "confirmedLicense": "CC BY 2.0",
         "licenseVerifiedBy": "mia-riezebos",
         "licenseVerifiedAt": "2026-04-14T18:02:36.416Z"
+      }
+    },
+    {
+      "id": "asset-436f8a681c5b60f1",
+      "label": "qr-positive",
+      "mediaType": "image/webp",
+      "fileExtension": ".webp",
+      "relativePath": "assets/asset-436f8a681c5b60f1.webp",
+      "sha256": "e5f307f37925ed617e7dad4a52a5cf1f1e82a95a5d21978bab7f948c0d548706",
+      "byteLength": 59748,
+      "sourceSha256": "436f8a681c5b60f14c8ade58fa2b3cccfc0a8caf538b5f35520793557dd816bc",
+      "provenance": [
+        {
+          "kind": "remote",
+          "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Nyanmura's_QR_code_sheet_on_her_booth_20230514.jpg",
+          "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Nyanmura%27s_QR_code_sheet_on_her_booth_20230514.jpg/960px-Nyanmura%27s_QR_code_sheet_on_her_booth_20230514.jpg",
+          "fetchedAt": "2026-04-15T23:02:45.164Z",
+          "pageTitle": "File:Nyanmura's QR code sheet on her booth 20230514.jpg - Wikimedia Commons",
+          "attribution": "Solomon203",
+          "license": "CC BY-SA 4.0"
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "mia-riezebos",
+        "reviewedAt": "2026-04-15T23:08:26.141Z"
+      },
+      "groundTruth": {
+        "qrCount": 1,
+        "codes": [
+          {
+            "text": "https://www.facebook.com/%E5%96%B5%E6%9D%91%E5%96%B5%E5%96%B5%E5%8F%AB-1767111826850349/?fref=ts",
+            "kind": "url"
+          }
+        ]
+      },
+      "autoScan": {
+        "attempted": true,
+        "succeeded": true,
+        "results": [],
+        "acceptedAsTruth": false
+      },
+      "licenseReview": {
+        "bestEffortLicense": "CC BY-SA 4.0",
+        "licenseEvidenceText": "Wikimedia API: CC BY-SA 4.0",
+        "confirmedLicense": "CC BY-SA 4.0",
+        "licenseVerifiedBy": "mia-riezebos",
+        "licenseVerifiedAt": "2026-04-15T23:08:26.141Z"
       }
     },
     {
@@ -991,6 +1087,59 @@
       }
     },
     {
+      "id": "asset-96574ac1e248e5a1",
+      "label": "qr-positive",
+      "mediaType": "image/webp",
+      "fileExtension": ".webp",
+      "relativePath": "assets/asset-96574ac1e248e5a1.webp",
+      "sha256": "f9efe788e182e3058fb7dc4717258468a766b83de337f64d561d80276257f365",
+      "byteLength": 29710,
+      "sourceSha256": "96574ac1e248e5a146e01205d95e3b0970f7d5b162976d9fb55f856ce514d238",
+      "provenance": [
+        {
+          "kind": "remote",
+          "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:QR_example.jpg",
+          "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/b/b5/QR_example.jpg",
+          "fetchedAt": "2026-04-15T23:02:40.948Z",
+          "pageTitle": "File:QR example.jpg - Wikimedia Commons",
+          "attribution": "분류",
+          "license": "CC0"
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "mia-riezebos",
+        "reviewedAt": "2026-04-15T23:08:33.792Z"
+      },
+      "groundTruth": {
+        "qrCount": 1,
+        "codes": [
+          {
+            "text": "WIFI:S:wi_dje21_MJ_308;T:WPA;P:9qo7x3xf5!#;H:false;;",
+            "kind": "wifi"
+          }
+        ]
+      },
+      "autoScan": {
+        "attempted": true,
+        "succeeded": true,
+        "results": [
+          {
+            "text": "WIFI:S:wi_dje21_MJ_308;T:WPA;P:9qo7x3xf5!#;H:false;;",
+            "kind": "text"
+          }
+        ],
+        "acceptedAsTruth": true
+      },
+      "licenseReview": {
+        "bestEffortLicense": "CC0",
+        "licenseEvidenceText": "Wikimedia API: CC0",
+        "confirmedLicense": "CC0",
+        "licenseVerifiedBy": "mia-riezebos",
+        "licenseVerifiedAt": "2026-04-15T23:08:33.792Z"
+      }
+    },
+    {
       "id": "asset-984edee5c5e5b76b",
       "label": "non-qr-negative",
       "mediaType": "image/webp",
@@ -1079,6 +1228,59 @@
         "confirmedLicense": "CC BY-SA 3.0",
         "licenseVerifiedBy": "mia-riezebos",
         "licenseVerifiedAt": "2026-04-14T18:16:57.943Z"
+      }
+    },
+    {
+      "id": "asset-9eab638313052b48",
+      "label": "qr-positive",
+      "mediaType": "image/webp",
+      "fileExtension": ".webp",
+      "relativePath": "assets/asset-9eab638313052b48.webp",
+      "sha256": "a77dbba5c7075404baa19974fa00ccdc6bfa347ff35bfc6c85bfb593f8d51380",
+      "byteLength": 46980,
+      "sourceSha256": "9eab638313052b4832e707cbb9e88a2bb9e668a2a5c9314f8172128266a635f5",
+      "provenance": [
+        {
+          "kind": "remote",
+          "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Wikipedia_Bulgaria_Linktree_QR_Code.svg",
+          "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/Wikipedia_Bulgaria_Linktree_QR_Code.svg/960px-Wikipedia_Bulgaria_Linktree_QR_Code.svg.png",
+          "fetchedAt": "2026-04-15T23:02:29.393Z",
+          "pageTitle": "File:Wikipedia Bulgaria Linktree QR Code.svg - Wikimedia Commons",
+          "attribution": "Pelajanela",
+          "license": "CC BY-SA 4.0"
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "mia-riezebos",
+        "reviewedAt": "2026-04-15T23:02:46.219Z"
+      },
+      "groundTruth": {
+        "qrCount": 1,
+        "codes": [
+          {
+            "text": "https://qrco.de/bdOWCR",
+            "kind": "url"
+          }
+        ]
+      },
+      "autoScan": {
+        "attempted": true,
+        "succeeded": true,
+        "results": [
+          {
+            "text": "https://qrco.de/bdOWCR",
+            "kind": "url"
+          }
+        ],
+        "acceptedAsTruth": true
+      },
+      "licenseReview": {
+        "bestEffortLicense": "CC BY-SA 4.0",
+        "licenseEvidenceText": "Wikimedia API: CC BY-SA 4.0",
+        "confirmedLicense": "CC BY-SA 4.0",
+        "licenseVerifiedBy": "mia-riezebos",
+        "licenseVerifiedAt": "2026-04-15T23:02:46.219Z"
       }
     },
     {
@@ -1218,6 +1420,54 @@
         "confirmedLicense": "CC BY 4.0",
         "licenseVerifiedBy": "mia-riezebos",
         "licenseVerifiedAt": "2026-04-14T17:45:59.812Z"
+      }
+    },
+    {
+      "id": "asset-ac9a7c440eb7ed89",
+      "label": "qr-positive",
+      "mediaType": "image/webp",
+      "fileExtension": ".webp",
+      "relativePath": "assets/asset-ac9a7c440eb7ed89.webp",
+      "sha256": "cb3a4ce452ce1aa31b037a0c68208b248a8f9e3a7f02a2edfeaf92bffaaa188d",
+      "byteLength": 59348,
+      "sourceSha256": "ac9a7c440eb7ed898f1efde3dd8c627d78e34399404b96aa7b473d1fe389e6c9",
+      "provenance": [
+        {
+          "kind": "remote",
+          "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:QR_Code_flag_in_Groningen_city.jpg",
+          "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/QR_Code_flag_in_Groningen_city.jpg/1280px-QR_Code_flag_in_Groningen_city.jpg",
+          "fetchedAt": "2026-04-15T23:02:37.123Z",
+          "pageTitle": "File:QR Code flag in Groningen city.jpg - Wikimedia Commons",
+          "attribution": "Cookie Nguyen",
+          "license": "CC BY-SA 4.0"
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "mia-riezebos",
+        "reviewedAt": "2026-04-15T23:04:03.294Z"
+      },
+      "groundTruth": {
+        "qrCount": 1,
+        "codes": [
+          {
+            "text": "http://www.voor.cc/welkom",
+            "kind": "url"
+          }
+        ]
+      },
+      "autoScan": {
+        "attempted": true,
+        "succeeded": true,
+        "results": [],
+        "acceptedAsTruth": false
+      },
+      "licenseReview": {
+        "bestEffortLicense": "CC BY-SA 4.0",
+        "licenseEvidenceText": "Wikimedia API: CC BY-SA 4.0",
+        "confirmedLicense": "CC BY-SA 4.0",
+        "licenseVerifiedBy": "mia-riezebos",
+        "licenseVerifiedAt": "2026-04-15T23:04:03.294Z"
       }
     },
     {
@@ -1949,6 +2199,59 @@
         "confirmedLicense": "CC BY-SA 4.0",
         "licenseVerifiedBy": "mia-riezebos",
         "licenseVerifiedAt": "2026-04-14T18:25:12.433Z"
+      }
+    },
+    {
+      "id": "asset-f5b99199ef46bc88",
+      "label": "qr-positive",
+      "mediaType": "image/webp",
+      "fileExtension": ".webp",
+      "relativePath": "assets/asset-f5b99199ef46bc88.webp",
+      "sha256": "3f377122eaa6eafc53c4acfb08ca358ac5538e675ea286a02245c5753d595127",
+      "byteLength": 9320,
+      "sourceSha256": "f5b99199ef46bc8855d9f43c6c6b067569793684ed76d0f096659d4679fdb365",
+      "provenance": [
+        {
+          "kind": "remote",
+          "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Digital_storytelling_with_maps_QR_code_(ES).jpg",
+          "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/4/4c/Digital_storytelling_with_maps_QR_code_%28ES%29.jpg",
+          "fetchedAt": "2026-04-15T23:02:33.207Z",
+          "pageTitle": "File:Digital storytelling with maps QR code (ES).jpg - Wikimedia Commons",
+          "attribution": "GALoPaX",
+          "license": "CC BY-SA 4.0"
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "mia-riezebos",
+        "reviewedAt": "2026-04-15T23:02:55.509Z"
+      },
+      "groundTruth": {
+        "qrCount": 1,
+        "codes": [
+          {
+            "text": "https://storymaps.arcgis.com/stories/d261febdfaab40d19d1d3b7066a88206",
+            "kind": "url"
+          }
+        ]
+      },
+      "autoScan": {
+        "attempted": true,
+        "succeeded": true,
+        "results": [
+          {
+            "text": "https://storymaps.arcgis.com/stories/d261febdfaab40d19d1d3b7066a88206",
+            "kind": "url"
+          }
+        ],
+        "acceptedAsTruth": true
+      },
+      "licenseReview": {
+        "bestEffortLicense": "CC BY-SA 4.0",
+        "licenseEvidenceText": "Wikimedia API: CC BY-SA 4.0",
+        "confirmedLicense": "CC BY-SA 4.0",
+        "licenseVerifiedBy": "mia-riezebos",
+        "licenseVerifiedAt": "2026-04-15T23:02:55.509Z"
       }
     }
   ]

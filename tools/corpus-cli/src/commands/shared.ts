@@ -232,13 +232,8 @@ export const promptManualGroundTruth = async (
     // Prefer autoKind over a generic 'text' from the scanner — detectQrKind
     // understands structured payloads (WIFI:, BEGIN:VCARD, etc.) that ironqr
     // reports as plain 'text'.
-    const suggestedKind =
-      prefill?.kind && prefill.kind !== 'text' ? prefill.kind : autoKind;
-    const kind = await promptOptionalText(
-      ui,
-      `QR #${label} kind (optional)`,
-      suggestedKind,
-    );
+    const suggestedKind = prefill?.kind && prefill.kind !== 'text' ? prefill.kind : autoKind;
+    const kind = await promptOptionalText(ui, `QR #${label} kind (optional)`, suggestedKind);
     const verifiedWith = await promptOptionalText(ui, `QR #${label} verified with (optional)`);
 
     codes.push({

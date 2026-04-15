@@ -2,6 +2,7 @@ import { Effect } from 'effect';
 import { tryPromise } from './effect.js';
 import type { SourcePage } from './page.js';
 import { normalizeHost } from './policy.js';
+import { htmlToText } from './text.js';
 
 export type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>;
 
@@ -151,23 +152,6 @@ export interface CommonsFileMeta {
   readonly attribution?: string;
 }
 
-const ENTITY_MAP: Record<string, string> = {
-  '&amp;': '&',
-  '&lt;': '<',
-  '&gt;': '>',
-  '&quot;': '"',
-  '&nbsp;': ' ',
-};
-const ENTITY_PATTERN = /&(?:amp|lt|gt|quot|nbsp);/g;
-
-/** Strips HTML tags and decodes entities in a single pass (no double-decode). */
-const stripHtmlTags = (fragment: string): string =>
-  fragment
-    .replace(/<[^>]+>/g, ' ')
-    .replace(ENTITY_PATTERN, (entity) => ENTITY_MAP[entity] ?? entity)
-    .replace(/\s+/g, ' ')
-    .trim();
-
 /**
  * Fetches structured file metadata from the Wikimedia Commons `imageinfo` API.
  * Returns null on any error so callers can gracefully fall back to HTML parsing.
@@ -212,7 +196,7 @@ export const fetchCommonsFileMeta = async (
 
     const license = extmeta.LicenseShortName?.value?.trim() || undefined;
     const artistRaw = extmeta.Artist?.value;
-    const attribution = artistRaw ? stripHtmlTags(artistRaw) || undefined : undefined;
+    const attribution = artistRaw ? htmlToText(artistRaw) || undefined : undefined;
 
     return {
       ...(license ? { license } : {}),

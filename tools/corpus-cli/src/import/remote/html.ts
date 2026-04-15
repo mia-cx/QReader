@@ -1,4 +1,5 @@
 import { getPageLinkPatterns, normalizeHost } from './policy.js';
+import { htmlToText } from './text.js';
 
 const absolutize = (baseUrl: string, value: string | null): string | null => {
   if (!value) return null;
@@ -44,26 +45,8 @@ const matchAllGroups = (pattern: RegExp, value: string, groupIndex = 1): string[
 
 // ── Attribution extraction ──────────────────────────────────────────────────
 
-/**
- * Strips HTML tags and decodes common HTML entities from a raw HTML fragment.
- */
-const ENTITY_MAP: Record<string, string> = {
-  '&amp;': '&',
-  '&lt;': '<',
-  '&gt;': '>',
-  '&quot;': '"',
-  '&#039;': "'",
-  '&nbsp;': ' ',
-};
-const ENTITY_PATTERN = /&(?:amp|lt|gt|quot|nbsp|#039);/g;
-
-/** Strips HTML tags and decodes entities in a single pass (no double-decode). */
-const htmlToText = (fragment: string): string =>
-  fragment
-    .replace(/<[^>]+>/g, ' ')
-    .replace(ENTITY_PATTERN, (entity) => ENTITY_MAP[entity] ?? entity)
-    .replace(/\s+/g, ' ')
-    .trim();
+const MAX_ATTRIBUTION_LENGTH = 200;
+const MAX_EVIDENCE_CONTEXT_LENGTH = 80;
 
 /**
  * For Wikimedia Commons file pages the file info table uses
@@ -75,7 +58,7 @@ export const extractCommonsAttribution = (html: string): string | null => {
     /id=["']fileinfotpl_aut["'][^<]*<\/[^>]+>\s*<\/td>\s*<td[^>]*>(.*?)<\/td>/is.exec(html);
   if (rowMatch?.[1]) {
     const text = htmlToText(rowMatch[1]);
-    if (text.length > 0 && text.length < 200) return text;
+    if (text.length > 0 && text.length < MAX_ATTRIBUTION_LENGTH) return text;
   }
   return null;
 };
@@ -123,7 +106,9 @@ const detectCommonsLicense = (
   if (ccUrl) return { bestEffortLicense: ccUrl, licenseEvidenceText: ccUrl };
 
   if (/public.?domain/i.test(html)) {
-    const evidence = /public.?domain[^<]{0,80}/i.exec(html)?.[0]?.trim();
+    const evidence = new RegExp(`public.?domain[^<]{0,${MAX_EVIDENCE_CONTEXT_LENGTH}}`, 'i')
+      .exec(html)?.[0]
+      ?.trim();
     return {
       bestEffortLicense: 'Public domain',
       ...(evidence ? { licenseEvidenceText: evidence } : {}),
@@ -168,14 +153,18 @@ export const detectBestEffortLicense = (
     return { bestEffortLicense: 'Pexels License', licenseEvidenceText: 'Pexels License' };
   }
   if (/\bcc0\b/i.test(html) || lowerHtml.includes('public domain')) {
-    const evidence = /(?:cc0|public domain)[^<]{0,80}/i.exec(html)?.[0]?.trim();
+    const evidence = new RegExp(`(?:cc0|public domain)[^<]{0,${MAX_EVIDENCE_CONTEXT_LENGTH}}`, 'i')
+      .exec(html)?.[0]
+      ?.trim();
     return {
       bestEffortLicense: 'CC0 / Public domain',
       ...(evidence ? { licenseEvidenceText: evidence } : {}),
     };
   }
   if (lowerHtml.includes('royalty-free') || lowerHtml.includes('royalty free')) {
-    const evidence = /royalty.free[^<]{0,80}/i.exec(html)?.[0]?.trim();
+    const evidence = new RegExp(`royalty.free[^<]{0,${MAX_EVIDENCE_CONTEXT_LENGTH}}`, 'i')
+      .exec(html)?.[0]
+      ?.trim();
     return {
       bestEffortLicense: 'Royalty free (verify page)',
       ...(evidence ? { licenseEvidenceText: evidence } : {}),

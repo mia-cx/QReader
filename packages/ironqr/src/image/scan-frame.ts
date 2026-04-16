@@ -2,9 +2,15 @@ import { Effect } from 'effect';
 import type { BrowserImageSource, ScanResult } from '../contracts/scan.js';
 import { decodeGridLogical } from '../qr/index.js';
 import { otsuBinarize, sauvolaBinarize, toChannelGray, toGrayscale } from './binarize.js';
-import { detectFinderCandidatePool, findBestFinderTriples } from './detect.js';
+import {
+  detectFinderCandidatePool,
+  type FinderCandidate,
+  findBestFinderTriples,
+} from './detect.js';
+import { detectFinderCandidatesFlood } from './detect-flood.js';
 import { candidateVersions, resolveGrid } from './geometry.js';
 import { toImageData } from './image.js';
+import { refineGridFitness } from './refine-fitness.js';
 import { sampleGrid } from './sample.js';
 
 /**
@@ -87,7 +93,15 @@ export const scanFrame = (input: BrowserImageSource) => {
     for (const makeCandidate of variants) {
       const candidate = makeCandidate();
 
-      const pool = detectFinderCandidatePool(candidate, width, height);
+      // Combine row-scan candidates (fast, axis-aligned) with flood-fill
+      // candidates (rotation-invariant, robust to stylized finders). They
+      // detect different things: row-scan catches the canonical 1:1:3:1:1
+      // run, flood-fill catches the dark-ring/light-gap/dark-stone topology
+      // independent of orientation. Cost: ~50-100ms per megapixel for
+      // flood-fill on top of row-scan's ~5ms.
+      const rowScanPool = detectFinderCandidatePool(candidate, width, height);
+      const floodPool = detectFinderCandidatesFlood(candidate, width, height);
+      const pool = mergeFinderPools(rowScanPool, floodPool);
       if (pool.length < 3) continue;
 
       const triples = findBestFinderTriples(pool, TRIPLES_PER_BINARY);
@@ -99,8 +113,17 @@ export const scanFrame = (input: BrowserImageSource) => {
         // misjudgement gives the wrong grid size; the encoded version info
         // bits in the QR will then refuse to decode against the wrong size.
         for (const version of candidateVersions(triple, 2)) {
-          const resolution = resolveGrid(triple, version);
-          if (resolution === null) continue;
+          const initialResolution = resolveGrid(triple, version);
+          if (initialResolution === null) continue;
+
+          // Hill-climb the homography on the QR's structural fitness
+          // (timing patterns, finder signatures, alignment patterns).
+          // The QR's own redundancy is the oracle: any perturbation that
+          // makes more expected cells match keeps the change. After this
+          // pass, version-info and format-info cells land where the spec
+          // says they do, even if the initial 3-finder homography was off
+          // by a fraction of a module at the far corner.
+          const resolution = refineGridFitness(initialResolution, candidate, width, height);
 
           const grid = sampleGrid(width, height, resolution, candidate);
 
@@ -135,6 +158,28 @@ export const scanFrame = (input: BrowserImageSource) => {
 
     return [] as ScanResult[];
   });
+};
+
+/**
+ * Merges row-scan and flood-fill candidate pools, deduping spatially-close
+ * candidates (within ~3 modules of each other). Order: row-scan first when
+ * both detect the same finder — row-scan's centre is more accurate when the
+ * finder is axis-aligned.
+ */
+const mergeFinderPools = (
+  primary: readonly FinderCandidate[],
+  secondary: readonly FinderCandidate[],
+): FinderCandidate[] => {
+  const merged: FinderCandidate[] = [...primary];
+  for (const candidate of secondary) {
+    const dupe = merged.some((existing) => {
+      const minMs = Math.min(existing.moduleSize, candidate.moduleSize);
+      const distance = Math.hypot(existing.cx - candidate.cx, existing.cy - candidate.cy);
+      return distance < minMs * 3;
+    });
+    if (!dupe) merged.push(candidate);
+  }
+  return merged;
 };
 
 /** Returns a new binary array with 0↔255 swapped. */

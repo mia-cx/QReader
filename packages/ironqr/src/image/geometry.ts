@@ -13,6 +13,8 @@ export interface GridResolution {
   readonly corners: CornerSet;
   /** Bounding box of the QR symbol in pixels. */
   readonly bounds: Bounds;
+  /** The underlying projective transform from module coords to pixel coords. */
+  readonly homography: Homography;
   /**
    * Maps a grid (row, col) module coordinate to a pixel (x, y) center.
    *
@@ -105,7 +107,88 @@ export const resolveGrid = (
     height: Math.max(...ys) - minY,
   };
 
-  return { version, size, corners, bounds, samplePoint };
+  return { version, size, corners, bounds, homography, samplePoint };
+};
+
+/** A user-supplied (module-coord, pixel-coord) correspondence used to refine the homography. */
+export interface ExtraCorrespondence {
+  readonly moduleRow: number;
+  readonly moduleCol: number;
+  readonly pixelX: number;
+  readonly pixelY: number;
+}
+
+/**
+ * Refits the QR grid homography using the standard 3-finder correspondences
+ * plus extra anchor points (e.g. a located alignment pattern center). Used
+ * after `resolveGrid` succeeds and we want to tighten the grid against
+ * additional verified landmarks before re-sampling.
+ *
+ * @param finders - The same 3 finders previously passed to `resolveGrid`.
+ * @param version - The version (and therefore size) to use.
+ * @param extraPoints - Additional (module, pixel) correspondences.
+ * @returns A new GridResolution with refined sampling, or null on degenerate fit.
+ */
+export const resolveGridFromCorrespondences = (
+  finders: readonly [FinderCandidate, FinderCandidate, FinderCandidate],
+  version: number,
+  extraPoints: readonly ExtraCorrespondence[],
+): GridResolution | null => {
+  if (version < 1 || version > 40) return null;
+  const oriented = orientFinders(finders);
+  if (oriented === null) return null;
+  const { topLeft, topRight, bottomLeft } = oriented;
+
+  const size = version * 4 + 17;
+  const finderOffset = 3;
+  const trGridCol = size - 1 - finderOffset;
+  const blGridRow = size - 1 - finderOffset;
+
+  type Pair = readonly [Point, Point];
+  const pairs: Pair[] = [
+    ...finderEdgePairs(topLeft, finderOffset, finderOffset),
+    ...finderEdgePairs(topRight, finderOffset, trGridCol),
+    ...finderEdgePairs(bottomLeft, blGridRow, finderOffset),
+    ...extraPoints.map(
+      (p): Pair => [
+        { x: p.moduleCol, y: p.moduleRow },
+        { x: p.pixelX, y: p.pixelY },
+      ],
+    ),
+  ];
+
+  const homography =
+    solveHomography(pairs) ??
+    affineHomographyFallback(topLeft, topRight, bottomLeft, finderOffset, trGridCol, blGridRow);
+  if (homography === null) return null;
+
+  const samplePoint = (gridRow: number, gridCol: number): Point =>
+    applyHomography(homography, gridCol, gridRow);
+
+  const cornerTL = samplePoint(-0.5, -0.5);
+  const cornerTR = samplePoint(-0.5, size - 0.5);
+  const cornerBR = samplePoint(size - 0.5, size - 0.5);
+  const cornerBL = samplePoint(size - 0.5, -0.5);
+
+  const corners: CornerSet = {
+    topLeft: cornerTL,
+    topRight: cornerTR,
+    bottomRight: cornerBR,
+    bottomLeft: cornerBL,
+  };
+
+  const xs = [cornerTL.x, cornerTR.x, cornerBR.x, cornerBL.x];
+  const ys = [cornerTL.y, cornerTR.y, cornerBR.y, cornerBL.y];
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  const bounds: Bounds = {
+    x: minX,
+    y: minY,
+    width: Math.max(...xs) - minX,
+    height: Math.max(...ys) - minY,
+  };
+
+  return { version, size, corners, bounds, homography, samplePoint };
 };
 
 /**
@@ -247,7 +330,23 @@ const finderEdgePairs = (
  * 3×3 homography in row-major order (h11, h12, h13, h21, h22, h23, h31, h32, h33).
  * Maps (col, row, 1) → (x*w, y*w, w); divide x and y by w to get pixel coords.
  */
-type Homography = readonly [number, number, number, number, number, number, number, number, number];
+/**
+ * A 3×3 projective transform stored row-major. Maps (col, row, 1) homogeneous
+ * module coordinates to pixel coordinates: divide x and y by the third
+ * component to get pixel (x, y). The 9th element is fixed at 1 — the
+ * transform has 8 free parameters.
+ */
+export type Homography = readonly [
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+];
 
 /**
  * Solves H from N≥4 (src → dst) correspondences via the standard DLT.
@@ -306,7 +405,8 @@ const accumulateNormalEquationRow = (
   }
 };
 
-const applyHomography = (h: Homography, x: number, y: number): Point => {
+/** Maps a (col, row) module coordinate through `h` to pixel space. */
+export const applyHomography = (h: Homography, x: number, y: number): Point => {
   const denom = h[6] * x + h[7] * y + h[8];
   return {
     x: (h[0] * x + h[1] * y + h[2]) / denom,

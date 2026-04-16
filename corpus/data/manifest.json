@@ -1211,8 +1211,9 @@
         "qrCount": 1,
         "codes": [
           {
-            "text": "http://sagasou.mobi MEBKM:TITLE:探そうモビで専門学校探し！;URL:http\\://sagasou.mobi;;",
-            "kind": "bookmark"
+            "text": "http://sagasou.mobi \r\n\r\nMEBKM:TITLE:’T‚»‚¤ƒ‚ƒr‚Åê–åŠwZ’T‚µI;URL:http\\://sagasou.mobi;;",
+            "kind": "bookmark",
+            "notes": "TITLE field is Shift-JIS encoded (raw bytes shown). Original Japanese: 探そうモビで専門学校探し！"
           }
         ]
       },

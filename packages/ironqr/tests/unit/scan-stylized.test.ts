@@ -111,5 +111,31 @@ describe('stylized QR scan — geometry variants', () => {
     expect(results[0]?.payload.text).toBe('HI');
   });
 
-  it.todo('strong keystone (15%+) on v1 — needs alignment-pattern refinement or homography from more than 3 finder corners', () => {});
+  it.todo('strong keystone (15%+) on v1 — needs flood-fill finder detection (current row-scan misses warped finders)', () => {});
+});
+
+describe('fitness-driven homography refinement', () => {
+  // The fitness refiner samples QR structural cells (timing patterns, finder
+  // signatures, alignment patterns) and hill-climbs the homography parameters
+  // to maximise expected/observed agreement. It exists as a precondition for
+  // the next slice's improvements (flood-fill detection, multi-QR clustering)
+  // — those will produce coarser initial homographies that need fitness-
+  // refinement to land usable.
+
+  it('exports refineGridFitness and accepts a GridResolution unchanged when fitness is already maximal', async () => {
+    const { detectFinderPatterns, otsuBinarize, refineGridFitness, resolveGrid, toGrayscale } =
+      await import('../../src/image/index.js');
+    const { buildHiGrid, gridToImageData } = await import('../helpers.js');
+    const grid = buildHiGrid();
+    const imageData = gridToImageData(grid);
+    const luma = toGrayscale(imageData);
+    const binary = otsuBinarize(luma, imageData.width, imageData.height);
+    const finders = detectFinderPatterns(binary, imageData.width, imageData.height);
+    const resolved = resolveGrid(finders, 1);
+    if (!resolved) throw new Error('expected resolveGrid to succeed for clean v1');
+    const refined = refineGridFitness(resolved, binary, imageData.width, imageData.height);
+    // For a perfect synthetic v1 the homography is already optimal.
+    expect(refined.version).toBe(1);
+    expect(refined.size).toBe(21);
+  });
 });

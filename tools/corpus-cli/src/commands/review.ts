@@ -67,14 +67,15 @@ export const runReviewCommand = async (
         message: `Confirmed license / permission basis for ${asset.id}`,
         ...(suggestedLicense ? { initialValue: suggestedLicense } : { placeholder: 'unknown' }),
       });
-      return value.trim().length > 0 ? value.trim() : undefined;
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : undefined;
     },
     promptAllowInCorpus: async (asset) =>
       context.ui.confirm({
         message: `Allow ${asset.id} in corpus?`,
         initialValue: true,
       }),
-    promptRejectReason: async (_asset) => {
+    promptRejectReason: async (_) => {
       const choice = await context.ui.select<string>({
         message: 'Rejection reason',
         initialValue: REJECTION_REASONS.LICENSE,

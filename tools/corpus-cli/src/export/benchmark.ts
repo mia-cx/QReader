@@ -110,6 +110,9 @@ export const listBenchEligibleAssets = async (
     approvedAssets.map(async (asset) => {
       const previewPath = path.join(repoRoot, 'corpus', 'data', asset.relativePath);
       const metadata = await sharp(previewPath).metadata();
+      if (metadata.width === undefined || metadata.height === undefined) {
+        throw new Error(`Missing image dimensions for ${asset.id}: ${previewPath}`);
+      }
       const firstCode = asset.groundTruth?.codes[0];
 
       return {
@@ -119,8 +122,8 @@ export const listBenchEligibleAssets = async (
         previewPath,
         mediaType: asset.mediaType,
         byteLength: asset.byteLength,
-        width: metadata.width ?? 0,
-        height: metadata.height ?? 0,
+        width: metadata.width,
+        height: metadata.height,
         qrCount: asset.groundTruth?.qrCount ?? null,
         textSnippet: firstCode ? firstCode.text : null,
       } satisfies BenchEligibleAsset;
@@ -136,7 +139,13 @@ export const readRealWorldBenchmarkFixture = async (
 
   try {
     const raw = await readFile(fixturePath, 'utf8');
-    return decodeRealWorldBenchmarkCorpus(JSON.parse(raw));
+    try {
+      return decodeRealWorldBenchmarkCorpus(JSON.parse(raw));
+    } catch (error) {
+      throw new Error(
+        `Failed to decode benchmark corpus at ${fixturePath}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   } catch (error) {
     if (isEnoentError(error)) {
       return { positives: [], negatives: [] };

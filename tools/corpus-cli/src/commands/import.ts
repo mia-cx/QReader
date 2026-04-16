@@ -8,6 +8,12 @@ import {
   updateStagedRemoteAsset,
 } from '../import/remote.js';
 import type { CorpusAssetLabel, GroundTruth, ReviewStatus } from '../schema.js';
+
+const resolveEffectiveReviewStatus = (
+  assetStatus: ReviewStatus,
+  override: ReviewStatus | undefined,
+): ReviewStatus => (assetStatus === 'pending' ? (override ?? 'pending') : assetStatus);
+
 import { assertInteractiveSession, isInteractiveSession } from '../tty.js';
 import {
   buildAutoScanGroundTruth,
@@ -71,12 +77,14 @@ const promptSharedOptionalMetadata = async (
   context: AppContext,
   current: { attribution?: string; license?: string; notes?: string },
 ): Promise<{ attribution?: string; license?: string; provenanceNotes?: string }> => {
+  const buildCurrentResult = () => ({
+    ...(current.attribution ? { attribution: current.attribution } : {}),
+    ...(current.license ? { license: current.license } : {}),
+    ...(current.notes ? { provenanceNotes: current.notes } : {}),
+  });
+
   if (!isInteractiveSession()) {
-    return {
-      ...(current.attribution ? { attribution: current.attribution } : {}),
-      ...(current.license ? { license: current.license } : {}),
-      ...(current.notes ? { provenanceNotes: current.notes } : {}),
-    };
+    return buildCurrentResult();
   }
 
   const wantsMore = await context.ui.confirm({
@@ -85,11 +93,7 @@ const promptSharedOptionalMetadata = async (
   });
 
   if (!wantsMore) {
-    return {
-      ...(current.attribution ? { attribution: current.attribution } : {}),
-      ...(current.license ? { license: current.license } : {}),
-      ...(current.notes ? { provenanceNotes: current.notes } : {}),
-    };
+    return buildCurrentResult();
   }
 
   const attribution =
@@ -138,8 +142,9 @@ const runLocalImport = async (
 ): Promise<ImportCommandResult> => {
   const providedLabel = getOption(args, 'label');
   const label = providedLabel ? parseLabel(providedLabel) : await promptLabel(context.ui);
-  const reviewStatus = getOption(args, 'review')
-    ? parseOptionalReviewStatus(getOption(args, 'review'))
+  const reviewOpt = getOption(args, 'review');
+  const reviewStatus = reviewOpt
+    ? parseOptionalReviewStatus(reviewOpt)
     : await promptReviewStatus(context.ui, 'approved');
 
   if (!reviewStatus) {
@@ -201,17 +206,31 @@ const runLocalImport = async (
   };
 };
 
+interface FillMissingStagedMetadataOptions {
+  readonly stageDir: string;
+  readonly reviewStatus: ReviewStatus | undefined;
+  readonly overrideLabel: CorpusAssetLabel | undefined;
+  readonly reviewNotes: string | undefined;
+  readonly attribution: string | undefined;
+  readonly license: string | undefined;
+  readonly provenanceNotes: string | undefined;
+  readonly explicitReviewer?: string | undefined;
+}
+
 const fillMissingStagedMetadata = async (
   context: AppContext,
-  stageDir: string,
-  reviewStatus: ReviewStatus | undefined,
-  overrideLabel: CorpusAssetLabel | undefined,
-  reviewNotes: string | undefined,
-  attribution: string | undefined,
-  license: string | undefined,
-  provenanceNotes: string | undefined,
-  explicitReviewer?: string,
+  opts: FillMissingStagedMetadataOptions,
 ): Promise<string | undefined> => {
+  const {
+    stageDir,
+    reviewStatus,
+    overrideLabel,
+    reviewNotes,
+    attribution,
+    license,
+    provenanceNotes,
+    explicitReviewer,
+  } = opts;
   const stagedAssets = await readStagedRemoteAssets(stageDir);
   let reviewer = explicitReviewer;
 
@@ -220,8 +239,7 @@ const fillMissingStagedMetadata = async (
       continue;
     }
 
-    const effectiveReviewStatus =
-      asset.review.status === 'pending' ? (reviewStatus ?? 'pending') : asset.review.status;
+    const effectiveReviewStatus = resolveEffectiveReviewStatus(asset.review.status, reviewStatus);
     if (effectiveReviewStatus !== 'approved') {
       continue;
     }
@@ -229,7 +247,7 @@ const fillMissingStagedMetadata = async (
     const effectiveLabel = overrideLabel ?? asset.suggestedLabel;
     reviewer = asset.review.reviewer ?? reviewer;
     if (!reviewer) {
-      reviewer = await resolveReviewer(context, reviewer);
+      reviewer = await resolveReviewer(context, undefined);
     }
 
     let confirmedLicense = asset.confirmedLicense ?? license;
@@ -280,11 +298,7 @@ const fillMissingStagedMetadata = async (
       },
       ...(confirmedLicense ? { confirmedLicense } : {}),
       ...(groundTruth ? { groundTruth } : {}),
-      ...(asset.bestEffortLicense ||
-      asset.licenseEvidenceText ||
-      confirmedLicense ||
-      attribution ||
-      provenanceNotes
+      ...(asset.bestEffortLicense || asset.licenseEvidenceText || confirmedLicense
         ? {
             bestEffortLicense: asset.bestEffortLicense,
             licenseEvidenceText: asset.licenseEvidenceText,
@@ -302,7 +316,8 @@ const runStagedImport = async (
   explicitStageDir?: string,
 ): Promise<ImportCommandResult> => {
   const reviewStatus = parseOptionalReviewStatus(getOption(args, 'review'));
-  const overrideLabel = getOption(args, 'label') ? parseLabel(getOption(args, 'label')) : undefined;
+  const labelOpt = getOption(args, 'label');
+  const overrideLabel = labelOpt ? parseLabel(labelOpt) : undefined;
   const reviewNotes = getOption(args, 'review-notes');
   const attribution = getOption(args, 'attribution');
   const license = getOption(args, 'license');
@@ -311,9 +326,10 @@ const runStagedImport = async (
 
   const stagedAssets = await readStagedRemoteAssets(stageDir);
   const approvedCount = stagedAssets.filter((asset) => {
-    const effectiveReviewStatus =
-      asset.review.status === 'pending' ? (reviewStatus ?? 'pending') : asset.review.status;
-    return !asset.importedAssetId && effectiveReviewStatus === 'approved';
+    return (
+      !asset.importedAssetId &&
+      resolveEffectiveReviewStatus(asset.review.status, reviewStatus) === 'approved'
+    );
   }).length;
 
   if (approvedCount === 0) {
@@ -322,8 +338,8 @@ const runStagedImport = async (
     );
   }
 
-  const reviewer = await fillMissingStagedMetadata(
-    context,
+  const reviewerOpt = getOption(args, 'reviewer');
+  const reviewer = await fillMissingStagedMetadata(context, {
     stageDir,
     reviewStatus,
     overrideLabel,
@@ -331,8 +347,8 @@ const runStagedImport = async (
     attribution,
     license,
     provenanceNotes,
-    getOption(args, 'reviewer'),
-  );
+    ...(reviewerOpt ? { explicitReviewer: reviewerOpt } : {}),
+  });
 
   const result = await context.ui.spin('Importing staged assets', () =>
     importStagedRemoteAssets({

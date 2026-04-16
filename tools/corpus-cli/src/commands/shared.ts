@@ -71,7 +71,7 @@ export const promptOptionalText = async (
 ): Promise<string | undefined> => {
   const rawValue = await ui.text({
     message,
-    ...(initialValue ? { initialValue } : {}),
+    ...(initialValue !== undefined ? { initialValue } : {}),
   });
   const trimmed = (typeof rawValue === 'string' ? rawValue : '').trim();
   return trimmed.length > 0 ? trimmed : undefined;
@@ -181,7 +181,7 @@ export const promptLocalPaths = async (
   const initialValue = initialPaths.join(', ');
   const value = await ui.text({
     message: 'Local image path(s), separated by commas or newlines',
-    ...(initialValue ? { initialValue } : {}),
+    ...(initialValue !== undefined ? { initialValue } : {}),
     validate: (input) =>
       splitPathInput(input).length > 0 ? undefined : 'At least one path is required',
   });

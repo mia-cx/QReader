@@ -62,6 +62,7 @@ const importStagedRemoteAssetsEffect = (options: ImportStagedRemoteAssetsOptions
     const assets = [...manifest.assets];
     const imported: CorpusAsset[] = [];
     const deduped: CorpusAsset[] = [];
+    const idsToDelete: string[] = [];
 
     for (const stagedAsset of stagedAssets) {
       const effectiveReviewStatus =
@@ -81,7 +82,7 @@ const importStagedRemoteAssetsEffect = (options: ImportStagedRemoteAssetsOptions
             rejectedAt: stagedAsset.review.reviewedAt ?? new Date().toISOString(),
           }),
         );
-        yield* removeStagedAssetDirEffect(options.stageDir, stagedAsset.id);
+        idsToDelete.push(stagedAsset.id);
         continue;
       }
 
@@ -108,7 +109,7 @@ const importStagedRemoteAssetsEffect = (options: ImportStagedRemoteAssetsOptions
       const result = yield* importAssetBytesEffect({
         repoRoot: options.repoRoot,
         assets,
-        bytes: new Uint8Array(bytes),
+        bytes,
         sourcePathForExtension: approvedAsset.imageUrl,
         label:
           options.overrideLabel ??
@@ -134,12 +135,16 @@ const importStagedRemoteAssetsEffect = (options: ImportStagedRemoteAssetsOptions
         imported.push(result.asset);
       }
 
-      // Corpus manifest and asset file written — staged dir is now redundant.
-      yield* removeStagedAssetDirEffect(options.stageDir, stagedAsset.id);
+      idsToDelete.push(stagedAsset.id);
     }
 
     const nextManifest = { version: MAJOR_VERSION, assets };
     yield* tryPromise(() => writeCorpusManifest(options.repoRoot, nextManifest));
+
+    for (const id of idsToDelete) {
+      yield* removeStagedAssetDirEffect(options.stageDir, id);
+    }
+
     yield* removeRunDirIfEmptyEffect(options.stageDir);
 
     return {

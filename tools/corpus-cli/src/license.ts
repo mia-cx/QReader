@@ -32,7 +32,8 @@ export const classifyLicense = (license: string): LicensePermissiveness => {
   if (/all\s+rights?\s+reserved/.test(s)) return 'restricted';
   if (/no\s+redistribution|not\s+for\s+redistribution/.test(s)) return 'restricted';
   if (/proprietary/.test(s)) return 'restricted';
-  if (/(©|\bcopyright)\s*\d{4}/.test(s) && !/\blicense\b/.test(s)) return 'restricted';
+  // Copyright notice with no associated license term implies all rights reserved.
+  if (/(©|\bcopyright)\s*\d{4}/.test(s) && !/\blicens/.test(s)) return 'restricted';
 
   return 'unknown';
 };

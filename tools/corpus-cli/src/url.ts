@@ -1,14 +1,12 @@
-/** Normalize a URL for dedup comparison: parse via `URL` for scheme/host canonicalization,
- * fall back to `decodeURIComponent`, then to the raw string. */
+/**
+ * Normalize a URL for dedup comparison via `URL` scheme/host canonicalization.
+ * Falls back to the raw string if the input is not a valid URL (e.g. a relative path).
+ */
 export const normalizeUrlForDedup = (url: string): string => {
   try {
     return new URL(url).href;
   } catch {
-    try {
-      return decodeURIComponent(url);
-    } catch {
-      return url;
-    }
+    return url;
   }
 };
 

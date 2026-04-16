@@ -83,7 +83,12 @@ export const assertAllowedStagedAssetUrls = ({
     throw new Error(`Source host does not match seed host: ${sourceHost}`);
   }
 
-  const sourcePageHost = normalizeHost(new URL(sourcePageUrl).hostname);
+  let sourcePageHost: string;
+  try {
+    sourcePageHost = normalizeHost(new URL(sourcePageUrl).hostname);
+  } catch {
+    throw new Error(`Source page URL is invalid: ${sourcePageUrl}`);
+  }
   if (sourcePageHost !== expectedSourceHost) {
     throw new Error(`Source page host is not allowlisted: ${sourcePageHost}`);
   }

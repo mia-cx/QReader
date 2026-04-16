@@ -150,9 +150,11 @@ const scrapeRemoteAssetsLoopEffect = (
     // Merge scrape progress URLs with manifest-derived URLs so we skip
     // pages whose images are already in the corpus without re-fetching.
     // Normalize all URLs so percent-encoded and decoded forms match.
+    // Note: manifestPageUrls are pre-normalized by collectExistingScrapeStateEffect,
+    // but we normalize again here for safety in case that contract ever changes.
     const seenSourcePageUrls = new Set<string>([
       ...scrapeProgress.visitedSourcePageUrls.map(normalizeUrlForDedup),
-      ...manifestPageUrls,
+      ...[...manifestPageUrls].map(normalizeUrlForDedup),
     ]);
 
     if (seenSourcePageUrls.size > 0) {

@@ -1,10 +1,17 @@
 /**
- * A detected finder pattern candidate with estimated center and module size.
+ * A detected finder pattern candidate with estimated center and module sizes.
+ *
+ * `hModuleSize` and `vModuleSize` are tracked separately so downstream geometry
+ * can recover the per-finder pixel extents in each direction — the affine /
+ * homography fit needs that to model perspective distortion.
  */
 export interface FinderCandidate {
   readonly cx: number;
   readonly cy: number;
+  /** Average of horizontal and vertical module sizes (kept for backwards compatibility). */
   readonly moduleSize: number;
+  readonly hModuleSize: number;
+  readonly vModuleSize: number;
 }
 
 /**
@@ -64,7 +71,13 @@ export const detectFinderPatterns = (
             );
 
             if (!duplicate) {
-              candidates.push({ cx, cy: refinedCy, moduleSize: finalModuleSize });
+              candidates.push({
+                cx,
+                cy: refinedCy,
+                moduleSize: finalModuleSize,
+                hModuleSize: moduleSize,
+                vModuleSize: vCheck.moduleSize,
+              });
             }
           }
         }

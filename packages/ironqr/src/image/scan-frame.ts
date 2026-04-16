@@ -13,6 +13,9 @@ import { sampleGrid } from './sample.js';
  * Pipeline: toImageData → toGrayscale → otsuBinarize → detectFinderPatterns
  *   → resolveGrid → sampleGrid → decodeGridLogical → ScanResult[].
  *
+ * Both normal and inverted binary orientations are attempted so that
+ * light-on-dark (inverted polarity) QR codes are handled transparently.
+ *
  * Succeeds with an empty array when no QR symbol is detected or decoding
  * fails. Fails through the Effect error channel when `toImageData` throws.
  *
@@ -26,34 +29,52 @@ export const scanFrame = (input: BrowserImageSource) => {
 
     const luma = toGrayscale(imageData);
     const binary = otsuBinarize(luma, width, height);
-    const finders = detectFinderPatterns(binary, width, height);
 
-    if (finders.length < 3) return [] as ScanResult[];
+    // Try normal polarity first, then inverted.  Light-on-dark QR codes
+    // (e.g. white modules on a black background) are indistinguishable from
+    // normal codes after polarity inversion, so we attempt both orientations
+    // and return the first successful decode.
+    const inverted = invertBinary(binary);
 
-    const resolution = resolveGrid(finders);
-    if (resolution === null) return [] as ScanResult[];
+    for (const candidate of [binary, inverted]) {
+      const finders = detectFinderPatterns(candidate, width, height);
+      if (finders.length < 3) continue;
 
-    const grid = sampleGrid(width, height, resolution, binary);
+      const resolution = resolveGrid(finders);
+      if (resolution === null) continue;
 
-    // Per the doc contract, decode failures collapse to an empty result set.
-    const decoded = yield* decodeGridLogical({ grid }).pipe(
-      Effect.catch(() => Effect.succeed(null)),
-    );
+      const grid = sampleGrid(width, height, resolution, candidate);
 
-    if (decoded === null) return [] as ScanResult[];
+      const decoded = yield* decodeGridLogical({ grid }).pipe(
+        Effect.catch(() => Effect.succeed(null)),
+      );
 
-    const result: ScanResult = {
-      payload: decoded.payload,
-      // TODO: replace with a real confidence signal (e.g. 1 - bestFormatHammingDistance / 15).
-      confidence: 0.9,
-      version: decoded.version,
-      errorCorrectionLevel: decoded.errorCorrectionLevel,
-      bounds: resolution.bounds,
-      corners: resolution.corners,
-      headers: decoded.headers,
-      segments: decoded.segments,
-    };
+      if (decoded === null) continue;
 
-    return [result];
+      const result: ScanResult = {
+        payload: decoded.payload,
+        // TODO: replace with a real confidence signal (e.g. 1 - bestFormatHammingDistance / 15).
+        confidence: 0.9,
+        version: decoded.version,
+        errorCorrectionLevel: decoded.errorCorrectionLevel,
+        bounds: resolution.bounds,
+        corners: resolution.corners,
+        headers: decoded.headers,
+        segments: decoded.segments,
+      };
+
+      return [result];
+    }
+
+    return [] as ScanResult[];
   });
+};
+
+/** Returns a new binary array with 0↔255 swapped. */
+const invertBinary = (binary: Uint8Array): Uint8Array => {
+  const out = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    out[i] = binary[i] === 0 ? 255 : 0;
+  }
+  return out;
 };

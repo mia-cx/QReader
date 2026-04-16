@@ -1,0 +1,107 @@
+/**
+ * Stylized-QR regression suite — Phase 1 failure characterization.
+ *
+ * Each test documents a failure mode found in the real-world corpus:
+ *   - inverted polarity (white modules on dark background) → detect-stage fail
+ *   - color modules (dark hue on white background) → verify luma path
+ *   - low contrast (dark gray on light gray) → Otsu boundary case
+ *
+ * Tests marked `.todo` represent failure modes we've observed in corpus
+ * diagnostics but whose fixes span later phases (geometry / multi-sample).
+ */
+import { describe, expect, it } from 'bun:test';
+import { Effect } from 'effect';
+import { scanFrame } from '../../src/image/index.js';
+import {
+  buildHiGrid,
+  gridToImageDataColor,
+  gridToImageDataInverted,
+  gridToImageDataLowContrast,
+  gridToImageDataPerspective,
+} from '../helpers.js';
+
+describe('stylized QR scan — polarity and contrast variants', () => {
+  // ── 1. Inverted polarity ──────────────────────────────────────────────
+  //
+  // Real corpus failure mode: 5 assets returned finders=0 — these are images
+  // where the QR is rendered as light modules on a dark background.
+  // crossCheckVertical bails when center pixel isn't dark (0), so the whole
+  // detection stage fails silently.
+  //
+  // Fix target (Phase 2): try both normal and inverted binary in the pipeline;
+  // detect finders against whichever orientation the image uses.
+
+  it('inverted polarity: white modules on black background decode correctly', async () => {
+    const grid = buildHiGrid();
+    const imageData = gridToImageDataInverted(grid);
+    const results = await Effect.runPromise(scanFrame(imageData));
+    expect(results).toHaveLength(1);
+    expect(results[0]?.payload.text).toBe('HI');
+  });
+
+  // ── 2. Color modules — dark blue on white ────────────────────────────
+  //
+  // QR codes with colored modules are common in marketing materials.
+  // The BT.601 luma of deep blue [0,0,139] is ~16 — high enough contrast
+  // vs white (255) that Otsu should still find the threshold.
+  // This tests that the luma-based path doesn't silently break on color input.
+
+  it('color modules: dark blue on white background decode correctly', async () => {
+    const grid = buildHiGrid();
+    const imageData = gridToImageDataColor(grid, [0, 0, 139], [255, 255, 255]);
+    const results = await Effect.runPromise(scanFrame(imageData));
+    expect(results).toHaveLength(1);
+    expect(results[0]?.payload.text).toBe('HI');
+  });
+
+  // ── 3. Low contrast — dark gray on light gray ─────────────────────────
+  //
+  // Reduced contrast (60 vs 195 instead of 0 vs 255) with a clean bimodal
+  // distribution. Global Otsu should still find a separating threshold;
+  // if this fails the Otsu implementation is broken, not just incomplete.
+
+  it('low contrast: dark gray (60) on light gray (195) decode correctly', async () => {
+    const grid = buildHiGrid();
+    const imageData = gridToImageDataLowContrast(grid, 60, 195);
+    const results = await Effect.runPromise(scanFrame(imageData));
+    expect(results).toHaveLength(1);
+    expect(results[0]?.payload.text).toBe('HI');
+  });
+
+  // ── 4. Inverted color — dark background with colored modules ──────────
+  //
+  // Corner case: dark brown background, cream modules.
+  // The luma of [210,180,140] is ~185, background [40,30,20] is ~32.
+  // Still bimodal but inverted — exercises both color luma and polarity.
+
+  it('inverted color: cream modules on dark brown background decode correctly', async () => {
+    const grid = buildHiGrid();
+    // Render inverted: "dark" (QR dark module) = cream, "light" = dark brown.
+    const imageData = gridToImageDataColor(grid, [210, 180, 140], [40, 30, 20]);
+    const results = await Effect.runPromise(scanFrame(imageData));
+    expect(results).toHaveLength(1);
+    expect(results[0]?.payload.text).toBe('HI');
+  });
+});
+
+describe('stylized QR scan — geometry variants', () => {
+  // ── 5. Perspective (keystone) distortion ──────────────────────────────
+  //
+  // Real corpus failure mode: ~10 portrait photos of QR codes on physical
+  // objects (kiosks, signs, billboards) photographed at an angle.  The old
+  // 3-finder affine drifted by several pixels at the far corner; the new
+  // homography fit (5 correspondences per finder) handles realistic camera
+  // angles. Stronger warps still expose finder *selection* problems (data
+  // modules can outscore real finders by module size) — fix target for the
+  // next slice.
+
+  it('mild keystone (5%): warped QR decodes correctly', async () => {
+    const grid = buildHiGrid();
+    const imageData = gridToImageDataPerspective(grid, 0.05);
+    const results = await Effect.runPromise(scanFrame(imageData));
+    expect(results).toHaveLength(1);
+    expect(results[0]?.payload.text).toBe('HI');
+  });
+
+  it.todo('moderate keystone (10%+) on v1 — needs finder selection that prefers true finders over high-module-size data blocks', () => {});
+});

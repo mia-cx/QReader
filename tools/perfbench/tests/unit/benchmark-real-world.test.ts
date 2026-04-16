@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import {
-  importLocalAssets,
-  writeSelectedRealWorldBenchmarkFixture,
-} from 'ironqr-corpus-cli';
+import { importLocalAssets, writeSelectedRealWorldBenchmarkFixture } from 'ironqr-corpus-cli';
 import { resolveRepoRootFromModuleUrl } from '../../src/cli.js';
 import { runRealWorldBenchmark, scoreRealWorldPositive } from '../../src/real-world-runner.js';
 import { makeTestDir } from '../helpers.js';

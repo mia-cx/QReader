@@ -32,8 +32,6 @@ const FIRST_PAGE_HTML = `
   </html>
 `;
 
-
-
 const buildMockFetch = (): ((input: string | URL) => Promise<Response>) => {
   return async (input) => {
     const url = typeof input === 'string' ? input : input.toString();

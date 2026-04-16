@@ -19,7 +19,11 @@ export const makeTestDir = async (label: string): Promise<string> => {
 };
 
 /** Create a minimal PNG buffer with the given RGB color. */
-export const createPngBytes = async (red: number, green: number, blue: number): Promise<Uint8Array> => {
+export const createPngBytes = async (
+  red: number,
+  green: number,
+  blue: number,
+): Promise<Uint8Array> => {
   const buffer = await sharp({
     create: {
       width: 2,

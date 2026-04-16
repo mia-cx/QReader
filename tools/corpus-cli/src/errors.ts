@@ -37,7 +37,10 @@ export class ParseError extends Error {
 /** Tagged error for unsupported media type or file extension. */
 export class UnsupportedMediaError extends Error {
   readonly _tag = 'UnsupportedMediaError';
-  constructor(message: string, readonly cause?: unknown) {
+  constructor(
+    message: string,
+    readonly cause?: unknown,
+  ) {
     super(message);
     this.name = 'UnsupportedMediaError';
   }
@@ -58,7 +61,10 @@ export class ImageProcessingError extends Error {
 /** Tagged error for corpus data integrity violations (e.g. conflicting dedup). */
 export class CorpusIntegrityError extends Error {
   readonly _tag = 'CorpusIntegrityError';
-  constructor(message: string, readonly cause?: unknown) {
+  constructor(
+    message: string,
+    readonly cause?: unknown,
+  ) {
     super(message);
     this.name = 'CorpusIntegrityError';
   }
@@ -67,7 +73,10 @@ export class CorpusIntegrityError extends Error {
 /** Tagged error for policy/validation violations (e.g. disallowed host). */
 export class PolicyError extends Error {
   readonly _tag = 'PolicyError';
-  constructor(message: string, readonly cause?: unknown) {
+  constructor(
+    message: string,
+    readonly cause?: unknown,
+  ) {
     super(message);
     this.name = 'PolicyError';
   }

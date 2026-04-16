@@ -227,12 +227,14 @@ export const promptManualGroundTruth = async (
     const label = index + 1;
     const prefill = prefills[index];
 
-    const text = (await ui.text({
-      message: `QR #${label} data (Enter newline, Esc then Enter submit)`,
-      multiline: true,
-      ...(prefill?.text ? { initialValue: prefill.text } : {}),
-      validate: (value) => (value.trim().length > 0 ? undefined : 'QR data is required'),
-    })).trim();
+    const text = (
+      await ui.text({
+        message: `QR #${label} data (Enter newline, Esc then Enter submit)`,
+        multiline: true,
+        ...(prefill?.text ? { initialValue: prefill.text } : {}),
+        validate: (value) => (value.trim().length > 0 ? undefined : 'QR data is required'),
+      })
+    ).trim();
     const autoKind = detectQrKind(text);
     // Prefer autoKind over a generic 'text' from the scanner — detectQrKind
     // understands structured payloads (WIFI:, BEGIN:VCARD, etc.) that ironqr

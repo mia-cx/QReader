@@ -12,8 +12,10 @@ interface ResolveSourcePagesEnv {
 }
 
 interface ResolveSourcePagesState {
-  readonly seenPages: Set<string>;
-  readonly yieldedLeaves: Set<string>;
+  /** Mutated by resolveSourcePages to track visited pages within this walk. */
+  seenPages: Set<string>;
+  /** Mutated by resolveSourcePages to prevent emitting the same leaf twice. */
+  yieldedLeaves: Set<string>;
   /** URLs of detail pages already fully processed in previous scrape runs. */
   readonly visitedSourcePageUrls?: ReadonlySet<string>;
 }

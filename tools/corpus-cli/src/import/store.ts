@@ -334,7 +334,8 @@ const mergeReview = (
 
 interface ImportAssetBytesOptions {
   readonly repoRoot: string;
-  readonly assets: CorpusAsset[];
+  /** Mutated in-place: new assets are pushed and deduped entries are updated by index. */
+  assets: CorpusAsset[];
   readonly bytes: Uint8Array;
   readonly sourcePathForExtension: string;
   readonly label: CorpusAssetLabel;

@@ -7,9 +7,18 @@ import {
   type FinderCandidate,
   findBestFinderTriples,
 } from './detect.js';
+import { locateAlignmentPatternCorrespondences } from './detect-alignment.js';
+import { detectFinderCandidatesMatcher } from './detect-finders.js';
 import { detectFinderCandidatesFlood } from './detect-flood.js';
-import { candidateVersions, resolveGrid } from './geometry.js';
+import {
+  candidateVersions,
+  resolveGrid,
+  resolveGridFromCorrespondences,
+  resolveGridFromCorners,
+  type GridResolution,
+} from './geometry.js';
 import { toImageData } from './image.js';
+import { createOklabContrastField, toOklabPlanes } from './oklab.js';
 import { refineGridFitness } from './refine-fitness.js';
 import { sampleGrid } from './sample.js';
 
@@ -38,6 +47,7 @@ export const scanFrame = (input: BrowserImageSource) => {
     const { width, height } = imageData;
 
     const luma = toGrayscale(imageData);
+    const contrast = createOklabContrastField(toOklabPlanes(imageData));
 
     // Order matters: cheap and most-likely-to-succeed first. Otsu normal
     // catches clean printed QRs in one pass; Sauvola is the fallback for
@@ -101,10 +111,8 @@ export const scanFrame = (input: BrowserImageSource) => {
       // flood-fill on top of row-scan's ~5ms.
       const rowScanPool = detectFinderCandidatePool(candidate, width, height);
       const floodPool = detectFinderCandidatesFlood(candidate, width, height);
-      const pool = mergeFinderPools(rowScanPool, floodPool);
-      if (pool.length < 3) continue;
-
-      const triples = findBestFinderTriples(pool, TRIPLES_PER_BINARY);
+      const matcherPool = detectFinderCandidatesMatcher(candidate, width, height, contrast);
+      const triples = collectFinderTriples(rowScanPool, floodPool, matcherPool, TRIPLES_PER_BINARY);
       if (triples.length === 0) continue;
 
       for (const triple of triples) {
@@ -116,48 +124,137 @@ export const scanFrame = (input: BrowserImageSource) => {
           const initialResolution = resolveGrid(triple, version);
           if (initialResolution === null) continue;
 
-          // Hill-climb the homography on the QR's structural fitness
-          // (timing patterns, finder signatures, alignment patterns).
-          // The QR's own redundancy is the oracle: any perturbation that
-          // makes more expected cells match keeps the change. After this
-          // pass, version-info and format-info cells land where the spec
-          // says they do, even if the initial 3-finder homography was off
-          // by a fraction of a module at the far corner.
-          const resolution = refineGridFitness(initialResolution, candidate, width, height);
+          // First tighten the raw 3-finder fit against structural redundancy.
+          const baseResolution = refineGridFitness(initialResolution, candidate, width, height);
+          const candidateResolutions: GridResolution[] = [baseResolution];
 
-          const grid = sampleGrid(width, height, resolution, candidate);
+          // V2+ symbols expose extra fixed landmarks: alignment patterns. Find
+          // them near the current prediction, refit the homography with those
+          // extra correspondences, then re-run the structural fitter on the
+          // stronger anchored model. Keep the original fit too: if the located
+          // alignment center is wrong, decode can still succeed on the base fit.
+          if (version >= 2) {
+            const alignmentPoints = locateAlignmentPatternCorrespondences(
+              baseResolution,
+              candidate,
+              width,
+              height,
+            );
+            if (alignmentPoints.length > 0) {
+              const alignmentRefit = resolveGridFromCorrespondences(
+                triple as [FinderCandidate, FinderCandidate, FinderCandidate],
+                version,
+                alignmentPoints,
+              );
+              if (alignmentRefit !== null) {
+                candidateResolutions.push(
+                  refineGridFitness(alignmentRefit, candidate, width, height),
+                );
+              }
+            }
+          }
 
-          // Cheap pre-flight: a real QR's row 6 timing pattern alternates
-          // dark/light cleanly between the two top finder separators. If too
-          // many cells disagree, the grid geometry is wrong and decode would
-          // just fail expensively.
-          if (!timingRowLooksValid(grid)) continue;
+          for (const resolution of candidateResolutions) {
+            const result = yield* tryDecodeResolution(resolution, candidate, width, height);
+            if (result !== null) return [result];
 
-          const decoded = yield* decodeGridLogical({ grid }).pipe(
-            Effect.catch(() => Effect.succeed(null)),
-          );
-
-          if (decoded === null) continue;
-
-          const result: ScanResult = {
-            payload: decoded.payload,
-            // TODO: replace with a real confidence signal (e.g. 1 - bestFormatHammingDistance / 15).
-            confidence: 0.9,
-            version: decoded.version,
-            errorCorrectionLevel: decoded.errorCorrectionLevel,
-            bounds: resolution.bounds,
-            corners: resolution.corners,
-            headers: decoded.headers,
-            segments: decoded.segments,
-          };
-
-          return [result];
+            // V1 symbols have no alignment pattern anchoring the far corner.
+            // When the three-finder fit lands slightly long or short at the
+            // bottom-right, decode can fail even though the timing row already
+            // says the grid is close. Probe a few one- and two-module nudges of
+            // the bottom-right corner in the local grid basis and let the spec
+            // decoder pick the winner.
+            if (resolution.version !== 1) continue;
+            for (const nudged of bottomRightCornerFallbacks(resolution)) {
+              const nudgedResult = yield* tryDecodeResolution(nudged, candidate, width, height);
+              if (nudgedResult !== null) return [nudgedResult];
+            }
+          }
         }
       }
     }
 
     return [] as ScanResult[];
   });
+};
+
+const tryDecodeResolution = (
+  resolution: GridResolution,
+  binary: Uint8Array,
+  width: number,
+  height: number,
+): Effect.Effect<ScanResult | null> => {
+  return Effect.gen(function* () {
+    const grid = sampleGrid(width, height, resolution, binary);
+
+    // Cheap pre-flight: a real QR's row 6 timing pattern alternates dark/
+    // light cleanly between the two top finder separators. If too many cells
+    // disagree, the grid geometry is wrong and decode would just fail
+    // expensively.
+    if (!timingRowLooksValid(grid)) return null;
+
+    const decoded = yield* decodeGridLogical({ grid }).pipe(
+      Effect.catch(() => Effect.succeed(null)),
+    );
+    if (decoded === null) return null;
+
+    return {
+      payload: decoded.payload,
+      // TODO: replace with a real confidence signal (e.g. 1 - bestFormatHammingDistance / 15).
+      confidence: 0.9,
+      version: decoded.version,
+      errorCorrectionLevel: decoded.errorCorrectionLevel,
+      bounds: resolution.bounds,
+      corners: resolution.corners,
+      headers: decoded.headers,
+      segments: decoded.segments,
+    } satisfies ScanResult;
+  });
+};
+
+const bottomRightCornerFallbacks = (resolution: GridResolution): readonly GridResolution[] => {
+  const { corners, size } = resolution;
+  const stepDenominator = Math.max(1, size - 1);
+  const colStep = {
+    x: (corners.bottomRight.x - corners.bottomLeft.x) / stepDenominator,
+    y: (corners.bottomRight.y - corners.bottomLeft.y) / stepDenominator,
+  };
+  const rowStep = {
+    x: (corners.bottomRight.x - corners.topRight.x) / stepDenominator,
+    y: (corners.bottomRight.y - corners.topRight.y) / stepDenominator,
+  };
+
+  const deltas: readonly (readonly [number, number])[] = [
+    [-1, 0],
+    [0, -1],
+    [-1, -1],
+    [1, 0],
+    [0, 1],
+    [1, 1],
+    [-2, 0],
+    [0, -2],
+    [-2, -1],
+    [-1, -2],
+    [2, 0],
+    [0, 2],
+    [2, 1],
+    [1, 2],
+    [-2, -2],
+    [2, 2],
+  ];
+
+  const candidates: GridResolution[] = [];
+  for (const [dc, dr] of deltas) {
+    const rebuilt = resolveGridFromCorners(resolution, {
+      ...corners,
+      bottomRight: {
+        x: corners.bottomRight.x + dc * colStep.x + dr * rowStep.x,
+        y: corners.bottomRight.y + dc * colStep.y + dr * rowStep.y,
+      },
+    });
+    if (rebuilt !== null) candidates.push(rebuilt);
+  }
+  return candidates;
 };
 
 /**
@@ -180,6 +277,47 @@ const mergeFinderPools = (
     if (!dupe) merged.push(candidate);
   }
   return merged;
+};
+
+const collectFinderTriples = (
+  rowScanPool: readonly FinderCandidate[],
+  floodPool: readonly FinderCandidate[],
+  matcherPool: readonly FinderCandidate[],
+  limit: number,
+): readonly (readonly FinderCandidate[])[] => {
+  const rawRowFlood = [...rowScanPool, ...floodPool];
+  const rawAll = [...rawRowFlood, ...matcherPool];
+  const mergedAll = mergeFinderPools(mergeFinderPools(rowScanPool, floodPool), matcherPool);
+  const pools: readonly (readonly FinderCandidate[])[] = [
+    rowScanPool,
+    rawRowFlood,
+    matcherPool,
+    rawAll,
+    mergedAll,
+  ];
+
+  const triples: FinderCandidate[][] = [];
+  for (const pool of pools) {
+    if (pool.length < 3) continue;
+    for (const triple of findBestFinderTriples(pool, limit)) {
+      triples.push([...triple]);
+    }
+  }
+
+  const deduped: FinderCandidate[][] = [];
+  const seen = new Set<string>();
+  for (const triple of triples) {
+    const key = triple
+      .map((finder) => `${Math.round(finder.cx)}:${Math.round(finder.cy)}`)
+      .sort()
+      .join('|');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(triple);
+    if (deduped.length >= limit * 4) break;
+  }
+
+  return deduped;
 };
 
 /** Returns a new binary array with 0↔255 swapped. */

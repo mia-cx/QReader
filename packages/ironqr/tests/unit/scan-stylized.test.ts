@@ -103,5 +103,13 @@ describe('stylized QR scan — geometry variants', () => {
     expect(results[0]?.payload.text).toBe('HI');
   });
 
-  it.todo('moderate keystone (10%+) on v1 — needs finder selection that prefers true finders over high-module-size data blocks', () => {});
+  it('moderate keystone (10%) on v1 decodes correctly', async () => {
+    const grid = buildHiGrid();
+    const imageData = gridToImageDataPerspective(grid, 0.1);
+    const results = await Effect.runPromise(scanFrame(imageData));
+    expect(results).toHaveLength(1);
+    expect(results[0]?.payload.text).toBe('HI');
+  });
+
+  it.todo('strong keystone (15%+) on v1 — needs alignment-pattern refinement or homography from more than 3 finder corners', () => {});
 });

@@ -98,11 +98,21 @@ export const detectFinderPatterns = (
     }
   }
 
+  // Real finders are square: their horizontal and vertical module sizes match
+  // closely. False positives in stylized data regions can have wildly different
+  // h/v sizes and yet outscore real finders by averaged moduleSize. Drop those
+  // before the top-3 sort.
+  const SQUARENESS_TOLERANCE = 1.35;
+  const squareCandidates = candidates.filter((c) => {
+    const hv = Math.max(c.hModuleSize, c.vModuleSize) / Math.min(c.hModuleSize, c.vModuleSize);
+    return hv <= SQUARENESS_TOLERANCE;
+  });
+
   // Return up to 3 non-overlapping candidates with largest module size (most confident)
-  candidates.sort((a, b) => b.moduleSize - a.moduleSize);
+  squareCandidates.sort((a, b) => b.moduleSize - a.moduleSize);
 
   const result: FinderCandidate[] = [];
-  for (const candidate of candidates) {
+  for (const candidate of squareCandidates) {
     const overlaps = result.some(
       (existing) =>
         Math.abs(existing.cx - candidate.cx) < candidate.moduleSize * 7 &&

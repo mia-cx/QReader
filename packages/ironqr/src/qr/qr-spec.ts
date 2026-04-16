@@ -238,10 +238,10 @@ export const getFormatInfoSecondCopyPositions = (
 export const getVersionInfoFirstCopyPositions = (
   size: number,
 ): readonly (readonly [number, number])[] => {
-  return Array.from(
-    { length: 18 },
-    (_, index) => [Math.floor(index / 3), size - 11 + (index % 3)] as const,
-  );
+  return Array.from({ length: 18 }, (_, index) => {
+    const reversed = 17 - index;
+    return [Math.floor(reversed / 3), size - 11 + (reversed % 3)] as const;
+  });
 };
 
 /**
@@ -253,10 +253,10 @@ export const getVersionInfoFirstCopyPositions = (
 export const getVersionInfoSecondCopyPositions = (
   size: number,
 ): readonly (readonly [number, number])[] => {
-  return Array.from(
-    { length: 18 },
-    (_, index) => [size - 11 + (index % 3), Math.floor(index / 3)] as const,
-  );
+  return Array.from({ length: 18 }, (_, index) => {
+    const reversed = 17 - index;
+    return [size - 11 + (reversed % 3), Math.floor(reversed / 3)] as const;
+  });
 };
 
 /**

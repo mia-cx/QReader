@@ -17,6 +17,7 @@ export const getUsageText = (): string => {
   ${buildFilteredCliCommand('review')} [<stage-dir>] [--reviewer github-login]
   ${buildFilteredCliCommand('import')} [<files...>|<stage-dir>] [--label qr-positive|non-qr-negative] [--review pending|approved|rejected]
   ${buildFilteredCliCommand('build-bench')} [<asset-id...>]
+  ${buildFilteredCliCommand('scan-corpus')} [--label qr-positive|non-qr-negative] [--failures-only] [--quiet]
 
 Global flags:
   --verbose / -v    log skipped candidates, same-host redirects, and other scrape details
@@ -24,5 +25,6 @@ Global flags:
 Notes:
   - no subcommand = guided scrape → review → import flow
   - missing required args prompt in TTY sessions
-  - build-bench writes committed perfbench fixture under tools/perfbench/fixtures/real-world/`;
+  - build-bench writes committed perfbench fixture under tools/perfbench/fixtures/real-world/
+  - scan-corpus runs the production scanner against every approved corpus asset and reports decode/false-positive rates`;
 };

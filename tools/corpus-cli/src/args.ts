@@ -2,7 +2,7 @@ import type { CorpusAssetLabel, ReviewStatus } from './schema.js';
 import { CORPUS_ASSET_LABELS, REVIEW_STATUSES } from './schema.js';
 
 /** Names of the top-level CLI subcommands. */
-export type CommandName = 'scrape' | 'review' | 'import' | 'build-bench';
+export type CommandName = 'scrape' | 'review' | 'import' | 'build-bench' | 'scan-corpus';
 
 /** Structured result of parsing raw process.argv arguments. */
 export interface ParsedArgs {
@@ -13,7 +13,13 @@ export interface ParsedArgs {
   readonly verbose: boolean;
 }
 
-const COMMAND_NAMES = new Set<CommandName>(['scrape', 'review', 'import', 'build-bench']);
+const COMMAND_NAMES = new Set<CommandName>([
+  'scrape',
+  'review',
+  'import',
+  'build-bench',
+  'scan-corpus',
+]);
 
 /** Parse a raw argv array (without the node/bun executable prefix) into structured args. */
 export const parseArgv = (argv: readonly string[]): ParsedArgs => {

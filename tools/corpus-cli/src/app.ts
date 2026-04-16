@@ -4,6 +4,7 @@ import { runBuildBenchCommand } from './commands/build-bench.js';
 import { runDefaultFlow } from './commands/default-flow.js';
 import { runImportCommand } from './commands/import.js';
 import { runReviewCommand } from './commands/review.js';
+import { runScanCorpusCommand } from './commands/scan-corpus.js';
 import { runScrapeCommand } from './commands/scrape.js';
 import type { AppContext } from './context.js';
 
@@ -32,6 +33,9 @@ export const runApp = async (context: AppContext, argv: readonly string[]): Prom
       return;
     case 'build-bench':
       await runBuildBenchCommand(context, args);
+      return;
+    case 'scan-corpus':
+      await runScanCorpusCommand(context, args);
       return;
     default: {
       const _exhaustive: never = args.command;

@@ -28,7 +28,8 @@
     "corpus:scrape": "bun src/cli.ts scrape",
     "corpus:review": "bun src/cli.ts review",
     "corpus:import": "bun src/cli.ts import",
-    "corpus:build-bench": "bun src/cli.ts build-bench"
+    "corpus:build-bench": "bun src/cli.ts build-bench",
+    "corpus:scan": "bun src/cli.ts scan-corpus"
   },
   "dependencies": {
     "@clack/prompts": "^0.11.0",

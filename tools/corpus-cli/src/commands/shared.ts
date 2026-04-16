@@ -8,6 +8,8 @@ import type { AutoScan, CorpusAssetLabel, GroundTruth, ReviewStatus } from '../s
 import { assertInteractiveSession } from '../tty.js';
 import type { CliUi } from '../ui.js';
 
+export const DEFAULT_FETCH_DELAY_MS = 1000;
+
 /** Split a whitespace/comma-separated URL string into individual URL strings. */
 export const splitUrlInput = (value: string): string[] => {
   return value
@@ -95,7 +97,10 @@ export const resolveReviewer = async (
     })
   ).trim();
 
-  return reviewer || detected || '';
+  if (!reviewer && !detected) {
+    throw new Error('Reviewer could not be determined');
+  }
+  return reviewer || detected!;
 };
 
 const getStageRoot = (repoRoot: string): string => {

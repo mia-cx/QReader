@@ -1,8 +1,8 @@
 import { Effect } from 'effect';
+import { normalizeUrlForDedup } from '../../url.js';
 import { tryPromise } from './effect.js';
 import type { SourcePage } from './page.js';
 import { normalizeHost } from './policy.js';
-import { normalizeUrlForDedup } from './stage-store.js';
 import { htmlToText, stripAnsi } from './text.js';
 
 /** Minimal subset of the Fetch API required by scrape utilities; compatible with `globalThis.fetch`. */
@@ -144,7 +144,8 @@ export const fetchText = (url: string, fetchImpl: FetchLike, isDetail: boolean) 
 
     const htmlBytes = yield* readLimitedBody(response, MAX_HTML_BYTES, `page ${finalUrl}`);
     const html = new TextDecoder().decode(htmlBytes);
-    const title = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1]?.trim() ?? null;
+    const rawTitle = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1]?.trim() ?? null;
+    const title = rawTitle !== null ? htmlToText(rawTitle).trim() || null : null;
 
     return {
       url: finalUrl,

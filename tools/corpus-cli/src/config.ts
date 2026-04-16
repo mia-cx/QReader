@@ -51,5 +51,12 @@ export const writeViewerPreference = async (
 ): Promise<void> => {
   const configPath = getCorpusCliConfigPath(repoRoot);
   await mkdir(path.dirname(configPath), { recursive: true });
-  await writeFile(configPath, `${JSON.stringify({ viewer }, null, 2)}\n`, 'utf8');
+  let existing: Record<string, unknown> = {};
+  try {
+    const raw = await readFile(configPath, 'utf8');
+    existing = JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    // file absent or unreadable — start fresh
+  }
+  await writeFile(configPath, `${JSON.stringify({ ...existing, viewer }, null, 2)}\n`, 'utf8');
 };

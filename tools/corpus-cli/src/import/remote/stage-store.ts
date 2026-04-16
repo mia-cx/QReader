@@ -4,7 +4,7 @@ import { Effect } from 'effect';
 import * as S from 'effect/Schema';
 import { isEnoentError } from '../../fs-error.js';
 import { readCorpusManifest, readCorpusRejections } from '../../manifest.js';
-import { assertHttpUrl } from '../../url.js';
+import { assertHttpUrl, normalizeUrlForDedup } from '../../url.js';
 import { assertCompatibleVersion } from '../../version.js';
 import { type StagedRemoteAsset, StagedRemoteAssetSchema } from './contracts.js';
 import { tryPromise } from './effect.js';
@@ -140,8 +140,8 @@ export const readStagedRemoteAssetEffect = (
 ): Effect.Effect<StagedRemoteAsset, unknown> => {
   return Effect.gen(function* () {
     assertSafeSlug(assetId, 'asset id');
-    const raw = yield* tryPromise(() => readFile(getAssetManifestPath(stageDir, assetId), 'utf8'));
     const manifestPath = getAssetManifestPath(stageDir, assetId);
+    const raw = yield* tryPromise(() => readFile(manifestPath, 'utf8'));
     const asset = decodeStagedAsset(JSON.parse(raw));
     assertCompatibleVersion(asset.version, manifestPath);
     validateStagedAsset(asset);
@@ -201,14 +201,7 @@ export const removeRunDirIfEmptyEffect = (stageDir: string) => {
   });
 };
 
-/** Normalize a URL for dedup comparison (decode percent-encoding so File%3A matches File:). */
-export const normalizeUrlForDedup = (url: string): string => {
-  try {
-    return decodeURIComponent(url);
-  } catch {
-    return url;
-  }
-};
+export { normalizeUrlForDedup };
 
 export interface ExistingScrapeState {
   readonly seenSourceSha256: Set<string>;

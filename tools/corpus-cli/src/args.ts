@@ -102,8 +102,8 @@ export const parseOptionalReviewStatus = (value: string | undefined): ReviewStat
 /** Parse a `--limit` option string into a positive finite number; throws on invalid input. */
 export const parseLimit = (value: string | undefined): number => {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new Error('Expected --limit to be a positive number');
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error('Expected --limit to be a positive integer');
   }
   return parsed;
 };

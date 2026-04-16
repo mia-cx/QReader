@@ -4,9 +4,7 @@ import { buildFilteredCliCommand } from '../command-text.js';
 import type { AppContext } from '../context.js';
 import { type ScrapeRemoteAssetsResult, scrapeRemoteAssets } from '../import/remote.js';
 import { isInteractiveSession } from '../tty.js';
-import { resolveSeedUrls, resolveStageLimit } from './shared.js';
-
-const DEFAULT_FETCH_DELAY_MS = 1000;
+import { DEFAULT_FETCH_DELAY_MS, resolveSeedUrls, resolveStageLimit } from './shared.js';
 
 interface ScrapeInputs {
   readonly seedUrls: readonly string[];

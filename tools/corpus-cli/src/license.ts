@@ -13,12 +13,14 @@ export const classifyLicense = (license: string): LicensePermissiveness => {
   const s = license.toLowerCase().trim();
 
   // Unambiguously permissive
-  if (/public[\s-]?domain|cc\s*0|\bpd\b/.test(s)) return 'permissive';
+  if (/public[\s-]?domain|cc\s*0/.test(s)) return 'permissive';
   if (/pixabay\s+license|pexels\s+license|unsplash\s+license/.test(s)) return 'permissive';
 
   // CC licenses — permissive unless NC is present
   if (/\bcc[\s-]by\b/.test(s)) {
-    return /-nc\b|non[\s-]?commercial/.test(s) ? 'non-commercial' : 'permissive';
+    if (/-nc\b|non[\s-]?commercial/.test(s)) return 'non-commercial';
+    if (/-nd\b|no[\s-]?deriv/.test(s)) return 'restricted';
+    return 'permissive';
   }
   // CC0 written out
   if (/creative\s+commons\s+zero/.test(s)) return 'permissive';

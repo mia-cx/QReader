@@ -94,6 +94,7 @@ const promptMultilineText = async (options: TextPromptOptions): Promise<string> 
 
   const pushUndo = (): void => {
     undoStack.push(value);
+    if (undoStack.length > 200) undoStack.shift();
     redoStack.length = 0;
   };
 
@@ -178,7 +179,7 @@ const promptMultilineText = async (options: TextPromptOptions): Promise<string> 
       }
 
       // Undo: ctrl+z
-      if (key.ctrl && key.name === 'z') {
+      if (key.ctrl && !key.shift && key.name === 'z') {
         if (undoStack.length > 0) {
           redoStack.push(value);
           value = undoStack.pop()!;

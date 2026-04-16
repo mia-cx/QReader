@@ -1,7 +1,6 @@
 import { execFileSync, spawn } from 'node:child_process';
 import path from 'node:path';
 import { runApp } from './app.js';
-import { buildFilteredCliCommand, getUsageText } from './command-text.js';
 import {
   getCorpusCliConfigPath,
   readViewerPreference,

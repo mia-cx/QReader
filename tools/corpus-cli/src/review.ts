@@ -161,7 +161,7 @@ export const reviewStagedAssets = async (
 
     const groundTruth =
       qrCount === 0
-        ? ({ qrCount: 0, codes: [] } as GroundTruth)
+        ? { qrCount: 0, codes: [] }
         : await options.promptGroundTruth(asset, qrCount, scanResult);
 
     const autoScan = toAutoScan(scanResult, groundTruthMatchesScan(groundTruth, scanResult));
@@ -191,4 +191,4 @@ const toAutoScan = (result: ScanAssetResult, acceptedAsTruth?: boolean): AutoSca
   ...(acceptedAsTruth !== undefined ? { acceptedAsTruth } : {}),
 });
 
-export type { ReviewStagedAssetsOptions, ReviewSummary, ScanAssetResult, StageReviewStatus };
+export type { ReviewStagedAssetsOptions, ReviewSummary };

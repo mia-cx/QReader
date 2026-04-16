@@ -506,7 +506,6 @@ describe('license classifier', () => {
   it('classifies permissive licenses', () => {
     expect(classifyLicense('CC BY 4.0')).toBe('permissive');
     expect(classifyLicense('CC BY-SA 4.0')).toBe('permissive');
-    expect(classifyLicense('CC BY-ND 4.0')).toBe('permissive');
     expect(classifyLicense('CC0 1.0')).toBe('permissive');
     expect(classifyLicense('Public domain')).toBe('permissive');
     expect(classifyLicense('Pixabay License')).toBe('permissive');
@@ -522,6 +521,7 @@ describe('license classifier', () => {
   });
 
   it('classifies restricted licenses', () => {
+    expect(classifyLicense('CC BY-ND 4.0')).toBe('restricted');
     expect(classifyLicense('All rights reserved')).toBe('restricted');
     expect(classifyLicense('© 2024 Photographer Name')).toBe('restricted');
     expect(classifyLicense('Proprietary')).toBe('restricted');

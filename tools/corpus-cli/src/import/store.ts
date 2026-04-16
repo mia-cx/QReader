@@ -60,7 +60,12 @@ export const extensionFromMediaType = (mediaType: string, fallbackPath: string):
   const fromMediaType = EXTENSIONS_BY_MEDIA_TYPE[normalizedMediaType];
   if (fromMediaType) return fromMediaType;
 
-  const fromPath = path.extname(new URL(fallbackPath).pathname || fallbackPath).toLowerCase();
+  let fromPath: string;
+  try {
+    fromPath = path.extname(new URL(fallbackPath).pathname).toLowerCase();
+  } catch {
+    fromPath = path.extname(fallbackPath).toLowerCase();
+  }
   if (fromPath && mediaTypeFromExtension(fromPath)) {
     return fromPath;
   }
@@ -68,14 +73,7 @@ export const extensionFromMediaType = (mediaType: string, fallbackPath: string):
   throw new Error(`Unsupported image media type: ${mediaType}`);
 };
 
-/** Import raw image bytes into the corpus, normalizing and deduplicating by source SHA-256. */
-export const importAssetBytes = (
-  options: ImportAssetBytesOptions,
-): Promise<ImportAssetBytesResult> => {
-  return Effect.runPromise(importAssetBytesEffect(options));
-};
-
-/** Effect-based implementation of `importAssetBytes`, suitable for composition in larger Effect pipelines. */
+/** Effect-based version of `importAssetBytes`, for composition in larger Effect pipelines. */
 export const importAssetBytesEffect = (
   options: ImportAssetBytesOptions,
 ): Effect.Effect<ImportAssetBytesResult, unknown> => {

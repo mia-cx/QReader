@@ -2,7 +2,6 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import * as S from 'effect/Schema';
 import { isEnoentError } from './fs-error.js';
-import { normalizeUrlForDedup } from './import/remote/stage-store.js';
 import {
   type CorpusManifest,
   CorpusManifestSchema,
@@ -12,7 +11,28 @@ import {
   type ScrapeProgress,
   ScrapeProgressSchema,
 } from './schema.js';
+import { normalizeUrlForDedup } from './url.js';
 import { assertCompatibleVersion, MAJOR_VERSION } from './version.js';
+
+const readVersionedJsonFile = async <T extends { version: number }>(
+  filePath: string,
+  decode: (input: unknown) => T,
+  fallback: T,
+): Promise<T> => {
+  try {
+    const raw = await readFile(filePath, 'utf8');
+    const data = decode(JSON.parse(raw));
+    assertCompatibleVersion(data.version, filePath);
+    return data;
+  } catch (error) {
+    if (isEnoentError(error)) return fallback;
+    throw error;
+  }
+};
+
+const writeJsonFile = async (filePath: string, data: unknown): Promise<void> => {
+  await writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+};
 
 const provenanceSortKey = (
   record: CorpusManifest['assets'][number]['provenance'][number],
@@ -63,22 +83,12 @@ export const ensureCorpusLayout = async (repoRoot: string): Promise<void> => {
 };
 
 /** Read and validate the corpus manifest; returns an empty manifest when the file is absent. */
-export const readCorpusManifest = async (repoRoot: string): Promise<CorpusManifest> => {
-  const manifestPath = getCorpusManifestPath(repoRoot);
-
-  try {
-    const raw = await readFile(manifestPath, 'utf8');
-    const manifest = S.decodeUnknownSync(CorpusManifestSchema)(JSON.parse(raw));
-    assertCompatibleVersion(manifest.version, manifestPath);
-    return manifest;
-  } catch (error) {
-    if (isEnoentError(error)) {
-      return { version: MAJOR_VERSION, assets: [] };
-    }
-
-    throw error;
-  }
-};
+export const readCorpusManifest = (repoRoot: string): Promise<CorpusManifest> =>
+  readVersionedJsonFile(
+    getCorpusManifestPath(repoRoot),
+    S.decodeUnknownSync(CorpusManifestSchema),
+    { version: MAJOR_VERSION, assets: [] },
+  );
 
 /** Write the corpus manifest to disk, sorting assets and provenance entries. */
 export const writeCorpusManifest = async (
@@ -99,7 +109,7 @@ export const writeCorpusManifest = async (
       })),
   };
 
-  await writeFile(getCorpusManifestPath(repoRoot), `${JSON.stringify(sorted, null, 2)}\n`, 'utf8');
+  await writeJsonFile(getCorpusManifestPath(repoRoot), sorted);
 };
 
 /** Return the absolute path to `corpus/data/rejections.json`. */
@@ -108,20 +118,12 @@ export const getCorpusRejectionsPath = (repoRoot: string): string => {
 };
 
 /** Read the rejections log; returns an empty log when the file is absent. */
-export const readCorpusRejections = async (repoRoot: string): Promise<CorpusRejectionsLog> => {
-  const rejectionsPath = getCorpusRejectionsPath(repoRoot);
-  try {
-    const raw = await readFile(rejectionsPath, 'utf8');
-    const log = S.decodeUnknownSync(CorpusRejectionsLogSchema)(JSON.parse(raw));
-    assertCompatibleVersion(log.version, rejectionsPath);
-    return log;
-  } catch (error) {
-    if (isEnoentError(error)) {
-      return { version: MAJOR_VERSION, rejections: [] };
-    }
-    throw error;
-  }
-};
+export const readCorpusRejections = (repoRoot: string): Promise<CorpusRejectionsLog> =>
+  readVersionedJsonFile(
+    getCorpusRejectionsPath(repoRoot),
+    S.decodeUnknownSync(CorpusRejectionsLogSchema),
+    { version: MAJOR_VERSION, rejections: [] },
+  );
 
 /** Append a rejection entry to the log, skipping duplicates by `sourceSha256`. */
 export const appendCorpusRejection = async (
@@ -137,11 +139,7 @@ export const appendCorpusRejection = async (
     version: MAJOR_VERSION,
     rejections: [...log.rejections, entry],
   };
-  await writeFile(
-    getCorpusRejectionsPath(repoRoot),
-    `${JSON.stringify(updated, null, 2)}\n`,
-    'utf8',
-  );
+  await writeJsonFile(getCorpusRejectionsPath(repoRoot), updated);
 };
 
 /** Return the absolute path to `corpus/data/scrape-progress.json`. */
@@ -149,37 +147,25 @@ export const getCorpusScrapeProgressPath = (repoRoot: string): string =>
   path.join(getCorpusDataRoot(repoRoot), 'scrape-progress.json');
 
 /** Read the scrape-progress file; returns an empty record when the file is absent. */
-export const readScrapeProgress = async (repoRoot: string): Promise<ScrapeProgress> => {
-  const progressPath = getCorpusScrapeProgressPath(repoRoot);
-  try {
-    const raw = await readFile(progressPath, 'utf8');
-    const progress = S.decodeUnknownSync(ScrapeProgressSchema)(JSON.parse(raw));
-    assertCompatibleVersion(progress.version, progressPath);
-    return progress;
-  } catch (error) {
-    if (isEnoentError(error)) {
-      return { version: MAJOR_VERSION, visitedSourcePageUrls: [] };
-    }
-    throw error;
-  }
-};
+export const readScrapeProgress = (repoRoot: string): Promise<ScrapeProgress> =>
+  readVersionedJsonFile(
+    getCorpusScrapeProgressPath(repoRoot),
+    S.decodeUnknownSync(ScrapeProgressSchema),
+    { version: MAJOR_VERSION, visitedSourcePageUrls: [] },
+  );
 
 /** Record a visited source-page URL in the progress file, skipping if already present. */
 export const appendVisitedSourcePage = async (repoRoot: string, url: string): Promise<void> => {
   await ensureCorpusLayout(repoRoot);
   const progress = await readScrapeProgress(repoRoot);
   const normalizedUrl = normalizeUrlForDedup(url);
-  const existingNormalized = progress.visitedSourcePageUrls.map(normalizeUrlForDedup);
-  if (existingNormalized.includes(normalizedUrl)) return;
+  const existingNormalized = new Set(progress.visitedSourcePageUrls.map(normalizeUrlForDedup));
+  if (existingNormalized.has(normalizedUrl)) return;
   const updated: ScrapeProgress = {
     version: MAJOR_VERSION,
     visitedSourcePageUrls: [...progress.visitedSourcePageUrls, normalizedUrl],
   };
-  await writeFile(
-    getCorpusScrapeProgressPath(repoRoot),
-    `${JSON.stringify(updated, null, 2)}\n`,
-    'utf8',
-  );
+  await writeJsonFile(getCorpusScrapeProgressPath(repoRoot), updated);
 };
 
 /** Convert an absolute `targetPath` to a forward-slash repo-relative path. */

@@ -6,13 +6,12 @@ import { runBuildBenchCommand } from './build-bench.js';
 import { runImportCommand } from './import.js';
 import { runReviewCommand } from './review.js';
 import {
+  DEFAULT_FETCH_DELAY_MS,
   listStageDirectories,
   resolveReviewer,
   resolveSeedUrls,
   resolveStageLimit,
 } from './shared.js';
-
-const DEFAULT_FETCH_DELAY_MS = 1000;
 
 const listUnreviewedStageDirs = async (repoRoot: string): Promise<readonly string[]> => {
   const stageDirs = await listStageDirectories(repoRoot);

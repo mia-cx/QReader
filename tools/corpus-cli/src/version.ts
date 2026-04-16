@@ -5,6 +5,9 @@ const pkg = require('../package.json') as { version: string };
 
 /** The major version of the corpus-cli package, used as the data-format compatibility version. */
 export const MAJOR_VERSION = Number(pkg.version.split('.')[0]);
+if (!Number.isFinite(MAJOR_VERSION)) {
+  throw new Error(`Failed to parse major version from package.json: ${pkg.version}`);
+}
 
 /**
  * Throw if `fileVersion` is newer than `MAJOR_VERSION`, indicating an incompatible data file.

@@ -164,20 +164,20 @@ const scrapeRemoteAssetsLoopEffect = (
             return yield* Effect.fail({ _tag: 'LimitReached' } as const);
           }
 
-          yield* processSourcePage(
+          yield* processSourcePage({
             page,
             seedUrl,
             fetchImpl,
             fetchDelayMs,
             log,
             limit,
-            options.label,
+            label: options.label,
             seenImageUrls,
             seenSourceSha256,
             assets,
             stageDir,
             onStagedAsset,
-          );
+          });
 
           // Mark the source page as visited so the next scrape session skips
           // fetching it entirely rather than re-deduping all its images.
@@ -226,21 +226,37 @@ const scrapeRemoteAssetsLoopEffect = (
   });
 };
 
-const processSourcePage = (
-  page: SourcePage,
-  seedUrl: string,
-  fetchImpl: FetchLike,
-  fetchDelayMs: number,
-  log: (line: string) => void,
-  limit: number,
-  label: StagedRemoteAsset['suggestedLabel'],
-  seenImageUrls: Set<string>,
-  seenSourceSha256: Set<string>,
-  assets: StagedRemoteAsset[],
-  stageDir: string,
-  onStagedAsset: (asset: StagedRemoteAsset) => void,
-) => {
+interface ProcessSourcePageOptions {
+  readonly page: SourcePage;
+  readonly seedUrl: string;
+  readonly fetchImpl: FetchLike;
+  readonly fetchDelayMs: number;
+  readonly log: (line: string) => void;
+  readonly limit: number;
+  readonly label: StagedRemoteAsset['suggestedLabel'];
+  readonly seenImageUrls: Set<string>;
+  readonly seenSourceSha256: Set<string>;
+  readonly assets: StagedRemoteAsset[];
+  readonly stageDir: string;
+  readonly onStagedAsset: (asset: StagedRemoteAsset) => void;
+}
+
+const processSourcePage = (opts: ProcessSourcePageOptions) => {
   return Effect.gen(function* () {
+    const {
+      page,
+      seedUrl,
+      fetchImpl,
+      fetchDelayMs,
+      log,
+      limit,
+      label,
+      seenImageUrls,
+      seenSourceSha256,
+      assets,
+      stageDir,
+      onStagedAsset,
+    } = opts;
     const imageCandidates = extractImageCandidates(page.url, page.html, page.isDetail);
     const host = normalizeHost(new URL(page.url).hostname);
     let licenseHint = detectBestEffortLicense(host, page.html);
@@ -280,7 +296,7 @@ const processSourcePage = (
       log(`Fetching image ${imageUrl}`);
       yield* Effect.sleep(fetchDelayMs);
 
-      const asset = yield* stageImage(
+      const asset = yield* stageImage({
         page,
         seedUrl,
         host,
@@ -288,11 +304,11 @@ const processSourcePage = (
         fetchImpl,
         label,
         licenseHint,
-        attributionText ?? undefined,
+        attributionText: attributionText ?? undefined,
         seenSourceSha256,
         stageDir,
         log,
-      );
+      });
 
       if (asset === null) continue;
 
@@ -305,20 +321,38 @@ const processSourcePage = (
   });
 };
 
-const stageImage = (
-  page: SourcePage,
-  seedUrl: string,
-  host: string,
-  imageUrl: string,
-  fetchImpl: FetchLike,
-  label: StagedRemoteAsset['suggestedLabel'],
-  licenseHint: { readonly bestEffortLicense?: string; readonly licenseEvidenceText?: string },
-  attributionText: string | undefined,
-  seenSourceSha256: Set<string>,
-  stageDir: string,
-  log: (line: string) => void,
-): Effect.Effect<StagedRemoteAsset | null, unknown> => {
+interface StageImageOptions {
+  readonly page: SourcePage;
+  readonly seedUrl: string;
+  readonly host: string;
+  readonly imageUrl: string;
+  readonly fetchImpl: FetchLike;
+  readonly label: StagedRemoteAsset['suggestedLabel'];
+  readonly licenseHint: {
+    readonly bestEffortLicense?: string;
+    readonly licenseEvidenceText?: string;
+  };
+  readonly attributionText?: string | undefined;
+  readonly seenSourceSha256: Set<string>;
+  readonly stageDir: string;
+  readonly log: (line: string) => void;
+}
+
+const stageImage = (opts: StageImageOptions): Effect.Effect<StagedRemoteAsset | null, unknown> => {
   return Effect.gen(function* () {
+    const {
+      page,
+      seedUrl,
+      host,
+      imageUrl,
+      fetchImpl,
+      label,
+      licenseHint,
+      attributionText,
+      seenSourceSha256,
+      stageDir,
+      log,
+    } = opts;
     const { bytes: rawBytes, mediaType: sourceMediaType } = yield* fetchImage(imageUrl, fetchImpl);
     const sourceSha256 = hashSha256(rawBytes);
 
@@ -346,7 +380,9 @@ const stageImage = (
     return asset;
   }).pipe(
     Effect.catch((error: unknown) => {
-      log(`Skipped ${imageUrl}: ${error instanceof Error ? error.message : String(error)}`);
+      opts.log(
+        `Skipped ${opts.imageUrl}: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return Effect.succeed(null);
     }),
   );

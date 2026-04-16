@@ -220,8 +220,13 @@ const normalizePageLinks = (pageUrl: string, matches: readonly string[]): readon
     matches
       .map((href) => absolutize(pageUrl, href))
       .filter((href): href is string => href !== null)
-      .filter((href) => normalizeHost(new URL(href).hostname) === host)
-      .filter((href) => patterns.some((pattern) => pattern.test(new URL(href).pathname))),
+      .filter((href) => {
+        const parsed = new URL(href);
+        return (
+          normalizeHost(parsed.hostname) === host &&
+          patterns.some((pattern) => pattern.test(parsed.pathname))
+        );
+      }),
   );
 };
 
@@ -248,8 +253,13 @@ const extractWrappedPageLinks = (
       } => match.href !== null,
     )
     .filter((match) => match.imageCandidates.length > 0)
-    .filter((match) => normalizeHost(new URL(match.href).hostname) === host)
-    .filter((match) => patterns.some((pattern) => pattern.test(new URL(match.href).pathname)));
+    .filter((match) => {
+      const parsed = new URL(match.href);
+      return (
+        normalizeHost(parsed.hostname) === host &&
+        patterns.some((pattern) => pattern.test(parsed.pathname))
+      );
+    });
 };
 
 /**

@@ -1,27 +1,23 @@
 import { describe, expect, it } from 'bun:test';
+import { fileURLToPath } from 'node:url';
 import { decodeGrid } from '../../src/index.js';
 import {
   buildDataModulePositions,
-  buildFormatInfoCodeword,
   buildFunctionModuleMask,
   buildVersionInfoCodeword,
-  FORMAT_INFO_FIRST_COPY_POSITIONS,
-  getFormatInfoSecondCopyPositions,
   getRemainderBits,
   getVersionBlockInfo,
-  maskApplies,
-  rsEncode,
 } from '../../src/qr/index.js';
 import { helloWorldV1MGrid } from '../fixtures/hello-world-v1-m.js';
 import { helloWorldV7MGrid } from '../fixtures/hello-world-v7-m.js';
+import {
+  appendBits,
+  buildVersion1Grid,
+  type Ecl,
+  finalizeV1DataCodewords as finalizeVersion1DataCodewords,
+} from '../helpers.js';
 
-// ─── Types ─────────────────────────────────────────────────────────────────
-
-type Ecl = 'L' | 'M' | 'Q' | 'H';
-
-// ─── Constants ─────────────────────────────────────────────────────────────
-
-const REPO_ROOT = new URL('../../', import.meta.url).pathname;
+const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const V1_SIZE = 21;
 const V1_VERSION = 1;
 
@@ -32,137 +28,6 @@ const VALID_V7_M_RS_BLOCK = [
   236, 236, 236, 236, 236, 236, 236, 236, 236, 236, 236, 129, 93, 188, 173, 236, 74, 208, 229, 53,
   207, 223, 112, 34, 118, 223, 231, 66, 151,
 ] as const;
-
-// ─── Bit helpers ───────────────────────────────────────────────────────────
-
-const appendBits = (bits: number[], value: number, length: number): void => {
-  for (let bit = length - 1; bit >= 0; bit -= 1) {
-    bits.push((value >> bit) & 1);
-  }
-};
-
-const bytesFromBits = (bits: readonly number[]): number[] => {
-  const bytes: number[] = [];
-  for (let index = 0; index < bits.length; index += 8) {
-    let value = 0;
-    for (let bit = 0; bit < 8; bit += 1) {
-      value = (value << 1) | (bits[index + bit] ?? 0);
-    }
-    bytes.push(value);
-  }
-  return bytes;
-};
-
-// ─── Version 1 grid builder ────────────────────────────────────────────────
-
-/**
- * Pads a raw payload bit stream to the full data codeword capacity for the
- * given version-1 EC level, then returns the resulting data codeword bytes.
- */
-const finalizeVersion1DataCodewords = (payloadBits: readonly number[], ecl: Ecl): number[] => {
-  const { dataCodewords: totalDataCodewords } = getVersionBlockInfo(V1_VERSION, ecl);
-  const totalBits = totalDataCodewords * 8;
-  const bits = Array.from(payloadBits);
-
-  appendBits(bits, 0, Math.min(4, totalBits - bits.length));
-  while (bits.length % 8 !== 0) {
-    bits.push(0);
-  }
-
-  let padByte = 0xec;
-  while (bits.length < totalBits) {
-    appendBits(bits, padByte, 8);
-    padByte = padByte === 0xec ? 0x11 : 0xec;
-  }
-
-  return bytesFromBits(bits);
-};
-
-/**
- * Builds a fully-compliant version-1 QR matrix from data codewords using the
- * specified EC level and mask pattern.  All function-module patterns, format
- * info, dark module, and data placement follow ISO 18004.
- */
-const buildVersion1Grid = (
-  dataCodewords: readonly number[],
-  ecl: Ecl,
-  maskPattern: number,
-): boolean[][] => {
-  const { ecCodewordsPerBlock } = getVersionBlockInfo(V1_VERSION, ecl);
-  const matrix = Array.from({ length: V1_SIZE }, () =>
-    Array.from({ length: V1_SIZE }, () => false),
-  );
-  const reserved = buildFunctionModuleMask(V1_SIZE, V1_VERSION);
-  const allCodewords = [
-    ...dataCodewords,
-    ...Array.from(rsEncode(dataCodewords, ecCodewordsPerBlock)),
-  ];
-  const bits: number[] = [];
-
-  const setModule = (row: number, col: number, value: boolean): void => {
-    const currentRow = matrix[row];
-    if (currentRow === undefined) throw new Error(`Missing row ${row}.`);
-    currentRow[col] = value;
-  };
-
-  const drawFinder = (top: number, left: number): void => {
-    for (let row = 0; row < 7; row += 1) {
-      for (let col = 0; col < 7; col += 1) {
-        const dark =
-          row === 0 ||
-          row === 6 ||
-          col === 0 ||
-          col === 6 ||
-          (row >= 2 && row <= 4 && col >= 2 && col <= 4);
-        setModule(top + row, left + col, dark);
-      }
-    }
-  };
-
-  drawFinder(0, 0);
-  drawFinder(0, V1_SIZE - 7);
-  drawFinder(V1_SIZE - 7, 0);
-
-  for (let index = 8; index < V1_SIZE - 8; index += 1) {
-    setModule(6, index, index % 2 === 0);
-    setModule(index, 6, index % 2 === 0);
-  }
-
-  const formatBits = buildFormatInfoCodeword(ecl, maskPattern);
-  for (let index = 0; index < FORMAT_INFO_FIRST_COPY_POSITIONS.length; index += 1) {
-    const position = FORMAT_INFO_FIRST_COPY_POSITIONS[index];
-    if (!position) continue;
-    setModule(position[0], position[1], ((formatBits >> (14 - index)) & 1) === 1);
-  }
-  for (let index = 0; index < getFormatInfoSecondCopyPositions(V1_SIZE).length; index += 1) {
-    const position = getFormatInfoSecondCopyPositions(V1_SIZE)[index];
-    if (!position) continue;
-    setModule(position[0], position[1], ((formatBits >> (14 - index)) & 1) === 1);
-  }
-
-  setModule(V1_SIZE - 8, 8, true);
-
-  for (const codeword of allCodewords) {
-    for (let bit = 7; bit >= 0; bit -= 1) {
-      bits.push((codeword >> bit) & 1);
-    }
-  }
-
-  const positions = buildDataModulePositions(V1_SIZE, reserved);
-  if (positions.length !== bits.length) {
-    throw new Error(`Fixture mismatch: ${positions.length} data modules, ${bits.length} bits.`);
-  }
-
-  for (let index = 0; index < positions.length; index += 1) {
-    const position = positions[index];
-    if (!position) continue;
-    const [row, col] = position;
-    const bit = bits[index] === 1;
-    setModule(row, col, maskApplies(maskPattern, row, col) ? !bit : bit);
-  }
-
-  return matrix;
-};
 
 // ─── Mode-specific payload helpers ────────────────────────────────────────
 

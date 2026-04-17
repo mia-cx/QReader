@@ -25,6 +25,7 @@ import { sampleGrid } from './sample.js';
 
 const DEFAULT_MAX_CANDIDATES = 8;
 const MAX_TRIPLE_MULTIPLIER = 4;
+const MERGED_POOL_DUPLICATE_RADIUS = 3;
 const CONFIDENCE_BASELINE = 0.9;
 
 /**
@@ -272,7 +273,10 @@ const mergeFinderPools = (
     const duplicate = merged.some((existing) => {
       const minModuleSize = Math.min(existing.moduleSize, candidate.moduleSize);
       const distance = Math.hypot(existing.cx - candidate.cx, existing.cy - candidate.cy);
-      return distance < minModuleSize * 3;
+      // Cross-detector merging stays looser than per-detector compaction because
+      // row-scan, flood, and matcher centers can land a couple of modules apart
+      // on the same finder under skew/noise while still representing one symbol.
+      return distance < minModuleSize * MERGED_POOL_DUPLICATE_RADIUS;
     });
     if (!duplicate) merged.push(candidate);
   }

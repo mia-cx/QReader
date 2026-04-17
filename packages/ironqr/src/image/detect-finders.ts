@@ -49,8 +49,8 @@ const MATCHER_MAX_SEEDS = 160;
 const MATCHER_MAX_HYPOTHESES_PER_SEED = 48;
 const MATCHER_MAX_BLOB_BASES = 8;
 const MATCHER_MAX_NEAREST_BLOBS = 6;
-const MATCHER_MIN_BLOB_DUPLICATE_RADIUS = 0.45;
-const MATCHER_SEED_DUPLICATE_RADIUS = 2;
+const MATCHER_BLOB_BLOB_DUPLICATE_RADIUS = 0.45;
+const MATCHER_MIXED_SEED_DUPLICATE_RADIUS = 2;
 const MATCHER_MIN_AXIS_ANGLE = 40;
 const MATCHER_MAX_AXIS_ANGLE = 140;
 const MATCHER_MAX_AXIS_RATIO = 1.7;
@@ -266,10 +266,14 @@ const dedupeSeeds = (seeds: readonly FinderSeed[]): FinderSeed[] => {
   for (const seed of seeds) {
     const duplicate = deduped.some((existing) => {
       const distance = Math.hypot(existing.cx - seed.cx, existing.cy - seed.cy);
+      // Blob seeds are low-confidence centroids from thresholded contrast
+      // islands, so blob↔blob dedupe stays tight. Mixed-source matches can be
+      // a bit farther apart because the stronger row/flood seeds often land on
+      // the same finder with different center estimates under skew.
       const thresholdFactor =
         seed.source === 'blob' && existing.source === 'blob'
-          ? MATCHER_MIN_BLOB_DUPLICATE_RADIUS
-          : MATCHER_SEED_DUPLICATE_RADIUS;
+          ? MATCHER_BLOB_BLOB_DUPLICATE_RADIUS
+          : MATCHER_MIXED_SEED_DUPLICATE_RADIUS;
       return distance < Math.min(existing.moduleSize, seed.moduleSize) * thresholdFactor;
     });
     if (!duplicate) deduped.push(seed);
